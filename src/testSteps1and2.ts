@@ -8,6 +8,9 @@ const testConfig: HexMapConfig = {
   octaves: 4,
   persistence: 0.5,
   lacunarity: 2.0,
+  noiseScale: 100,      // reasonable test default
+  noiseWeight: 0.7,     // matches old blend
+  shapeWeight: 0.3,     // matches old blend
   gradientExponent: 1.2,
   seaLevel: 0.5,
 };

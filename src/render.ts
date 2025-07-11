@@ -53,7 +53,21 @@ export function renderHexMap(
   config: RenderConfig,
   biomes: Biome[] = defaultBiomes
 ) {
-  const { width, height, showRivers, showFlowAccumulation, debugMode, coastEdges, showHexOutlines, showElevationHeatmap, showLandWaterDebug } = config;
+  const { width, height, showRivers, showFlowAccumulation, debugMode, coastEdges, showHexOutlines, showElevationHeatmap, showLandWaterDebug, hexRadius } = config;
+
+  // Infer cols/rows from hexes if not present in config
+  let cols = 0, rows = 0;
+  if (hexes.length > 0) {
+    cols = Math.max(...hexes.map(h => h.q)) + 1;
+    rows = Math.max(...hexes.map(h => h.r)) + 1;
+  }
+  const mapW = cols * hexRadius * Math.sqrt(3);
+  const mapH = rows * hexRadius * 1.5;
+  const offsetX = (width - mapW) / 2;
+  const offsetY = (height - mapH) / 2;
+
+  ctx.save();
+  ctx.translate(offsetX, offsetY);
 
   // Fill ocean background
   ctx.fillStyle = OCEAN_COLOR;
@@ -88,6 +102,8 @@ export function renderHexMap(
   if (showFlowAccumulation && debugMode) {
     drawFlowAccumulation(ctx, hexes, flowAccum, config);
   }
+
+  ctx.restore();
 }
 
 function fillCoastlines(

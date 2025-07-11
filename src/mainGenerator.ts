@@ -11,6 +11,9 @@ export interface WorldConfig {
   octaves: number;
   persistence: number;
   lacunarity: number;
+  noiseScale: number;      // new
+  noiseWeight: number;     // new
+  shapeWeight: number;     // new
   gradientExponent: number;
   seaLevel: number;
   // River settings
@@ -49,6 +52,9 @@ export function generateWorld(config: WorldConfig): WorldResult {
     octaves: config.octaves,
     persistence: config.persistence,
     lacunarity: config.lacunarity,
+    noiseScale: config.noiseScale, // new
+    noiseWeight: config.noiseWeight, // new
+    shapeWeight: config.shapeWeight, // new
     gradientExponent: config.gradientExponent,
     seaLevel: config.seaLevel,
   };

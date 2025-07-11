@@ -4,6 +4,13 @@ import { createNoise2D } from 'simplex-noise';
 import { generateWorld, WorldConfig } from './mainGenerator';
 import { renderWorld } from './mainGenerator';
 import { renderHexMap, RenderConfig } from './render';
+import { generateHexMapSteps } from './worldGenerator';
+
+const STEP_LABELS = [
+  '1. Raw Elevation (Heightmap)',
+  '2. Land/Water Classification',
+  '3. After Speck Removal',
+];
 
 interface MapSettings {
   seed: number;
@@ -103,6 +110,7 @@ function App() {
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [step, setStep] = useState(0); // 0: elevation, 1: land/water, 2: speck removal
 
   // Create a seeded simplex noise instance for moisture
   const createSimplex = (seed: number) => {
@@ -127,84 +135,58 @@ function App() {
     canvas.width = settings.width;
     canvas.height = settings.height;
 
-    // Generate moisture map for hexes
-    const moistureMap: number[] = [];
-    for (let r = 0; r < settings.hexRows; r++) {
-      for (let q = 0; q < settings.hexCols; q++) {
-        const x = settings.hexRadius * Math.sqrt(3) * (q + 0.5 * (r & 1));
-        const y = settings.hexRadius * 1.5 * r;
-        
-        const moistureNoise = simplexMoisture(x * 0.01, y * 0.01) * 0.5 + 0.5;
-        moistureMap.push(moistureNoise);
-      }
-    }
-
-    // Generate world using modular system
-    const worldConfig: WorldConfig = {
-      seed: settings.seed,
-      hexRadius: settings.hexRadius,
+    // Use step-by-step generator
+    const steps = generateHexMapSteps(settings.seed, {
+      radius: settings.hexRadius,
       cols: settings.hexCols,
       rows: settings.hexRows,
       octaves: settings.octaves,
       persistence: settings.persistence,
       lacunarity: settings.lacunarity,
+      noiseScale: settings.scale,
+      noiseWeight: settings.localDetailWeight,
+      shapeWeight: settings.globalShapeWeight,
       gradientExponent: 1.2,
       seaLevel: settings.landThreshold,
-      // River settings
-      minSourceElev: settings.minSourceElev,
-      mainRiverAccum: settings.mainRiverAccum,
-      tributaryAccum: settings.tributaryAccum,
-      secondaryStreamAccum: settings.secondaryStreamAccum,
-      tertiaryStreamAccum: settings.tertiaryStreamAccum,
-      riverWidth: settings.riverWidth,
-      riverSmooth: settings.riverSmooth,
-      // Coastline settings
-      erosionPasses: settings.enableCoastlineRefinement ? 1 : 0,
-      dilationPasses: settings.enableCoastlineRefinement ? 1 : 0,
-      coastNoiseSeed: settings.seed + 3000,
-      // Render settings
-      showRivers: settings.enableRivers,
-      showFlowAccumulation: settings.debugOverlay,
-      showCoastlines: settings.enableCoastlineRefinement,
-      debugMode: settings.debugOverlay,
-    };
+    });
 
-    const worldResult = generateWorld(worldConfig);
-    
-    // Store debug info for display
-    if (worldResult.debugInfo) {
-      setDebugInfo(worldResult.debugInfo);
+    // Pick which hexes to render based on step
+    let hexesToRender = steps.rawHexes;
+    let renderMode: 'elevation' | 'landwater' | 'speck' = 'elevation';
+    if (step === 1) {
+      hexesToRender = steps.landWaterHexes;
+      renderMode = 'landwater';
+    } else if (step === 2) {
+      hexesToRender = steps.speckHexes;
+      renderMode = 'speck';
     }
 
-    // Create render config with debug options
+    // Render according to step
     const renderConfig: RenderConfig = {
       width: ctx.canvas.width,
       height: ctx.canvas.height,
-      hexRadius: worldResult.config.hexRadius,
-      showRivers: worldResult.config.showRivers,
-      showFlowAccumulation: worldResult.config.showFlowAccumulation,
-      showCoastlines: worldResult.config.showCoastlines,
-      debugMode: worldResult.config.debugMode,
-      coastEdges: worldResult.coastEdges,
-      // Debug visualization options
-      showHexOutlines: settings.showHexOutlines,
-      showElevationHeatmap: settings.showElevationHeatmap,
-      showLandWaterDebug: settings.showLandWaterDebug,
+      hexRadius: settings.hexRadius,
+      showRivers: false,
+      showFlowAccumulation: false,
+      showCoastlines: false,
+      debugMode: true,
+      coastEdges: [],
+      showHexOutlines: true,
+      showElevationHeatmap: renderMode === 'elevation',
+      showLandWaterDebug: renderMode !== 'elevation',
     };
-
-    // Render the world
     renderHexMap(
       ctx,
-      worldResult.hexes,
-      worldResult.riverResult.riverPolylines,
-      moistureMap,
-      worldResult.riverResult.flowAccum,
+      hexesToRender,
+      [], // no rivers
+      [], // no moisture
+      [], // no flowAccum
       renderConfig,
       biomes
     );
 
     setIsGenerating(false);
-  }, [settings, simplexMoisture]);
+  }, [settings, step]);
 
   // Apply zoom to the canvas
 
@@ -645,6 +627,14 @@ function App() {
         <button onClick={handleExport} disabled={isGenerating}>
           Export Map
         </button>
+
+        <div className="control-group">
+          <label>Step-by-step Debug:</label>
+          <button onClick={() => setStep(s => (s + 1) % 3)} disabled={isGenerating}>
+            Next Step
+          </button>
+          <span style={{ marginLeft: 10, fontWeight: 'bold' }}>{STEP_LABELS[step]}</span>
+        </div>
       </div>
       
       <div className="map-container">

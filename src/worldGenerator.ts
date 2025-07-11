@@ -16,6 +16,9 @@ export interface HexMapConfig {
   octaves: number;
   persistence: number;
   lacunarity: number;
+  noiseScale: number;      // new
+  noiseWeight: number;     // new
+  shapeWeight: number;     // new
   gradientExponent: number;
   seaLevel: number;
 }
@@ -35,8 +38,84 @@ export interface HexMapDebugInfo {
   };
 }
 
+// New: Step-by-step generator for visual debugging
+export function generateHexMapSteps(seed: number, config: HexMapConfig, debug: boolean = false) {
+  const { radius, cols, rows, octaves, persistence, lacunarity, noiseScale, noiseWeight, shapeWeight, gradientExponent, seaLevel } = config;
+  const noise = createNoise2D(() => {
+    seed = Math.sin(seed) * 10000;
+    return seed - Math.floor(seed);
+  });
+
+  // Calculate map center for gradient
+  const mapWidth = cols * radius * Math.sqrt(3);
+  const mapHeight = rows * radius * 1.5;
+  const centerX = mapWidth / 2;
+  const centerY = mapHeight / 2;
+  const maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
+
+  // Step 1: Raw elevation (no land/water yet)
+  const rawHexes: Hex[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let q = 0; q < cols; q++) {
+      const x = radius * Math.sqrt(3) * (q + 0.5 * (r & 1));
+      const y = radius * 1.5 * r;
+      let amplitude = 1, frequency = 1, noiseSum = 0, maxAmp = 0;
+      for (let o = 0; o < octaves; o++) {
+        const sampleX = (x / noiseScale) * frequency;
+        const sampleY = (y / noiseScale) * frequency;
+        const n = noise(sampleX, sampleY) * 0.5 + 0.5;
+        noiseSum += n * amplitude;
+        maxAmp += amplitude;
+        amplitude *= persistence;
+        frequency *= lacunarity;
+      }
+      const noiseHeight = noiseSum / maxAmp;
+      const dx = x - centerX;
+      const dy = y - centerY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const gradient = Math.pow(1 - dist / maxDist, gradientExponent);
+      const elevation = noiseHeight * noiseWeight + gradient * shapeWeight;
+      rawHexes.push({ q, r, x, y, elevation, isLand: false });
+    }
+  }
+
+  // Step 2: Land/water classification
+  const landWaterHexes: Hex[] = rawHexes.map(h => ({ ...h, isLand: h.elevation > seaLevel }));
+
+  // Step 3: Speck removal
+  const speckHexes: Hex[] = landWaterHexes.map(h => ({ ...h }));
+  const hexIndex = (q: number, r: number) => r * cols + q;
+  const directions = [
+    [+1, 0], [0, +1], [-1, +1], [-1, 0], [0, -1], [+1, -1]
+  ];
+  for (let i = 0; i < speckHexes.length; i++) {
+    const hex = speckHexes[i];
+    if (!hex.isLand) continue;
+    let landNeighbors = 0;
+    for (const [dq, dr] of directions) {
+      const nq = hex.q + dq;
+      const nr = hex.r + dr;
+      if (nq >= 0 && nq < cols && nr >= 0 && nr < rows) {
+        const neighbor = speckHexes[hexIndex(nq, nr)];
+        if (neighbor && neighbor.isLand) landNeighbors++;
+      }
+    }
+    if (landNeighbors < 2) {
+      hex.isLand = false;
+    }
+  }
+
+  return {
+    rawHexes,
+    landWaterHexes,
+    speckHexes,
+    config,
+    seed
+  };
+}
+
 export function generateHexMap(seed: number, config: HexMapConfig, debug: boolean = false): { hexes: Hex[]; seed: number; config: HexMapConfig; debugInfo?: HexMapDebugInfo } {
-  const { radius, cols, rows, octaves, persistence, lacunarity, gradientExponent, seaLevel } = config;
+  const { radius, cols, rows, octaves, persistence, lacunarity, noiseScale, noiseWeight, shapeWeight, gradientExponent, seaLevel } = config;
   const hexes: Hex[] = [];
   const noise = createNoise2D(() => {
     seed = Math.sin(seed) * 10000;
@@ -76,21 +155,21 @@ export function generateHexMap(seed: number, config: HexMapConfig, debug: boolea
       const x = radius * Math.sqrt(3) * (q + 0.5 * (r & 1));
       const y = radius * 1.5 * r;
 
-      // Fractal noise sampling
+      // Fractal noise sampling with user scale
       let amplitude = 1;
       let frequency = 1;
-      let noiseHeight = 0;
-      let maxValue = 0;
+      let noiseSum = 0;
+      let maxAmp = 0;
       for (let o = 0; o < octaves; o++) {
-        const sampleX = (x / (radius * cols)) * frequency;
-        const sampleY = (y / (radius * rows)) * frequency;
+        const sampleX = (x / noiseScale) * frequency;
+        const sampleY = (y / noiseScale) * frequency;
         const n = noise(sampleX, sampleY) * 0.5 + 0.5;
-        noiseHeight += n * amplitude;
-        maxValue += amplitude;
+        noiseSum += n * amplitude;
+        maxAmp += amplitude;
         amplitude *= persistence;
         frequency *= lacunarity;
       }
-      noiseHeight /= maxValue;
+      const noiseHeight = noiseSum / maxAmp;
 
       // Radial gradient fall-off
       const dx = x - centerX;
@@ -98,8 +177,8 @@ export function generateHexMap(seed: number, config: HexMapConfig, debug: boolea
       const dist = Math.sqrt(dx * dx + dy * dy);
       const gradient = Math.pow(1 - dist / maxDist, gradientExponent);
 
-      // Combine noise and gradient
-      const elevation = noiseHeight * 0.7 + gradient * 0.3;
+      // Blend using user weights
+      const elevation = noiseHeight * noiseWeight + gradient * shapeWeight;
       const isLand = elevation > seaLevel;
 
       // Track elevation statistics
