@@ -99,6 +99,8 @@ export function renderWorld(
     showFlowAccumulation: worldResult.config.showFlowAccumulation,
     showCoastlines: worldResult.config.showCoastlines,
     debugMode: worldResult.config.debugMode,
+    // new! hand through the refined coastline edges
+    coastEdges: worldResult.coastEdges
   };
   
   renderHexMap(

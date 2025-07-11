@@ -60,13 +60,6 @@ export function renderHexMap(
     fillCoastlines(ctx, coastEdges, LAND_COLOR);
   }
 
-  // Optionally: draw hex outlines for debugging
-  if (debugMode) {
-    for (const hex of hexes) {
-      drawHexOutline(ctx, hex, config.hexRadius, 'rgba(0,0,0,0.08)');
-    }
-  }
-
   // Draw rivers if enabled
   if (showRivers) {
     drawRivers(ctx, riverPolylines, debugMode);
@@ -81,8 +74,11 @@ export function renderHexMap(
 function fillCoastlines(ctx: CanvasRenderingContext2D, coastEdges: { x: number, y: number }[][], landColor: string) {
   ctx.save();
   ctx.fillStyle = landColor;
-  for (const poly of coastEdges) {
-    if (poly.length < 3) continue;
+  // Only fill the largest N closed polylines (likely the main islands)
+  const minLength = 30; // Tune as needed
+  const sorted = [...coastEdges].sort((a, b) => b.length - a.length);
+  for (const poly of sorted) {
+    if (poly.length < minLength) continue;
     ctx.beginPath();
     poly.forEach((pt, i) => i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y));
     ctx.closePath();
