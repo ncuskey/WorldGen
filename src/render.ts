@@ -10,6 +10,10 @@ export interface RenderConfig {
   showCoastlines: boolean;
   debugMode: boolean;
   coastEdges?: { x: number, y: number }[][]; // Add this for coastline rendering
+  // Debug visualization options
+  showHexOutlines?: boolean;
+  showElevationHeatmap?: boolean;
+  showLandWaterDebug?: boolean;
 }
 
 export interface Biome {
@@ -49,15 +53,30 @@ export function renderHexMap(
   config: RenderConfig,
   biomes: Biome[] = defaultBiomes
 ) {
-  const { width, height, showRivers, showFlowAccumulation, debugMode, coastEdges } = config;
+  const { width, height, showRivers, showFlowAccumulation, debugMode, coastEdges, showHexOutlines, showElevationHeatmap, showLandWaterDebug } = config;
 
   // Fill ocean background
   ctx.fillStyle = OCEAN_COLOR;
   ctx.fillRect(0, 0, width, height);
 
-  // Fill all landmasses using coastline polylines
-  if (coastEdges && coastEdges.length > 0) {
+  // Debug mode: Show elevation heatmap
+  if (debugMode && showElevationHeatmap) {
+    drawElevationHeatmap(ctx, hexes, config);
+  }
+
+  // Debug mode: Show land/water classification
+  if (debugMode && showLandWaterDebug) {
+    drawLandWaterDebug(ctx, hexes, config);
+  }
+
+  // Fill all landmasses using coastline polylines (only if not in debug mode)
+  if (!debugMode && coastEdges && coastEdges.length > 0) {
     fillCoastlines(ctx, coastEdges, LAND_COLOR);
+  }
+
+  // Debug mode: Show hex outlines
+  if (debugMode && showHexOutlines) {
+    drawHexOutlines(ctx, hexes, config);
   }
 
   // Draw rivers if enabled
@@ -71,40 +90,128 @@ export function renderHexMap(
   }
 }
 
-function fillCoastlines(ctx: CanvasRenderingContext2D, coastEdges: { x: number, y: number }[][], landColor: string) {
+function fillCoastlines(
+  ctx: CanvasRenderingContext2D,
+  coastEdges: { x: number, y: number }[][],
+  landColor: string
+) {
+  if (coastEdges.length === 0) return;
   ctx.save();
   ctx.fillStyle = landColor;
-  // Only fill the largest N closed polylines (likely the main islands)
-  const minLength = 30; // Tune as needed
-  const sorted = [...coastEdges].sort((a, b) => b.length - a.length);
-  for (const poly of sorted) {
-    if (poly.length < minLength) continue;
-    ctx.beginPath();
-    poly.forEach((pt, i) => i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y));
-    ctx.closePath();
-    ctx.fill();
-  }
+
+  // sort loops descending by length and pick the first (largest)
+  const [mainLoop] = coastEdges.slice().sort((a, b) => b.length - a.length);
+
+  ctx.beginPath();
+  mainLoop.forEach((pt, i) => i === 0
+    ? ctx.moveTo(pt.x, pt.y)
+    : ctx.lineTo(pt.x, pt.y)
+  );
+  ctx.closePath();
+  ctx.fill();
+
   ctx.restore();
 }
 
-function drawHexOutline(ctx: CanvasRenderingContext2D, hex: Hex, radius: number, color: string) {
-  ctx.save();
-  ctx.strokeStyle = color;
+function drawElevationHeatmap(
+  ctx: CanvasRenderingContext2D,
+  hexes: Hex[],
+  config: RenderConfig
+) {
+  const { hexRadius } = config;
+  
+  // Find elevation range
+  const elevations = hexes.map(h => h.elevation);
+  const minElev = Math.min(...elevations);
+  const maxElev = Math.max(...elevations);
+  
+  hexes.forEach(hex => {
+    // Normalize elevation to 0-1
+    const normalizedElev = (hex.elevation - minElev) / (maxElev - minElev);
+    
+    // Create heatmap color (blue to green to red)
+    let r, g, b;
+    if (normalizedElev < 0.5) {
+      // Blue to green
+      const t = normalizedElev * 2;
+      r = 0;
+      g = Math.floor(t * 255);
+      b = Math.floor((1 - t) * 255);
+    } else {
+      // Green to red
+      const t = (normalizedElev - 0.5) * 2;
+      r = Math.floor(t * 255);
+      g = Math.floor((1 - t) * 255);
+      b = 0;
+    }
+    
+    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+    drawHex(ctx, hex.x, hex.y, hexRadius);
+  });
+}
+
+function drawLandWaterDebug(
+  ctx: CanvasRenderingContext2D,
+  hexes: Hex[],
+  config: RenderConfig
+) {
+  const { hexRadius } = config;
+  
+  hexes.forEach(hex => {
+    if (hex.isLand) {
+      ctx.fillStyle = '#90EE90'; // Light green for land
+    } else {
+      ctx.fillStyle = '#87CEEB'; // Light blue for water
+    }
+    drawHex(ctx, hex.x, hex.y, hexRadius);
+  });
+}
+
+function drawHexOutlines(
+  ctx: CanvasRenderingContext2D,
+  hexes: Hex[],
+  config: RenderConfig
+) {
+  const { hexRadius } = config;
+  
+  ctx.strokeStyle = '#333';
   ctx.lineWidth = 1;
+  
+  hexes.forEach(hex => {
+    drawHexOutline(ctx, hex.x, hex.y, hexRadius);
+  });
+}
+
+function drawHex(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
     const angle = (i * Math.PI) / 3;
-    const x = hex.x + radius * Math.cos(angle);
-    const y = hex.y + radius * Math.sin(angle);
+    const px = x + radius * Math.cos(angle);
+    const py = y + radius * Math.sin(angle);
     if (i === 0) {
-      ctx.moveTo(x, y);
+      ctx.moveTo(px, py);
     } else {
-      ctx.lineTo(x, y);
+      ctx.lineTo(px, py);
+    }
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawHexOutline(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const angle = (i * Math.PI) / 3;
+    const px = x + radius * Math.cos(angle);
+    const py = y + radius * Math.sin(angle);
+    if (i === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
     }
   }
   ctx.closePath();
   ctx.stroke();
-  ctx.restore();
 }
 
 function drawRivers(ctx: CanvasRenderingContext2D, riverPolylines: RiverPolyline[], debugMode: boolean) {

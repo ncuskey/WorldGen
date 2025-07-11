@@ -20,7 +20,22 @@ export interface HexMapConfig {
   seaLevel: number;
 }
 
-export function generateHexMap(seed: number, config: HexMapConfig) {
+export interface HexMapDebugInfo {
+  totalHexes: number;
+  landHexes: number;
+  waterHexes: number;
+  minElevation: number;
+  maxElevation: number;
+  avgElevation: number;
+  speckRemoved: number;
+  elevationStats: {
+    belowSeaLevel: number;
+    atSeaLevel: number;
+    aboveSeaLevel: number;
+  };
+}
+
+export function generateHexMap(seed: number, config: HexMapConfig, debug: boolean = false): { hexes: Hex[]; seed: number; config: HexMapConfig; debugInfo?: HexMapDebugInfo } {
   const { radius, cols, rows, octaves, persistence, lacunarity, gradientExponent, seaLevel } = config;
   const hexes: Hex[] = [];
   const noise = createNoise2D(() => {
@@ -28,12 +43,32 @@ export function generateHexMap(seed: number, config: HexMapConfig) {
     return seed - Math.floor(seed);
   });
 
+  if (debug) {
+    console.log('=== STEP 1: HEX GRID & HEIGHTMAP GENERATION ===');
+    console.log(`Config: ${cols}x${rows} hexes, radius=${radius}px, seaLevel=${seaLevel}`);
+    console.log(`Noise: ${octaves} octaves, persistence=${persistence}, lacunarity=${lacunarity}`);
+    console.log(`Gradient: exponent=${gradientExponent}`);
+  }
+
   // Calculate map center for gradient
   const mapWidth = cols * radius * Math.sqrt(3);
   const mapHeight = rows * radius * 1.5;
   const centerX = mapWidth / 2;
   const centerY = mapHeight / 2;
   const maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
+
+  if (debug) {
+    console.log(`Map dimensions: ${mapWidth.toFixed(1)}x${mapHeight.toFixed(1)}px`);
+    console.log(`Map center: (${centerX.toFixed(1)}, ${centerY.toFixed(1)})`);
+    console.log(`Max distance from center: ${maxDist.toFixed(1)}px`);
+  }
+
+  let minElev = Infinity;
+  let maxElev = -Infinity;
+  let totalElev = 0;
+  let belowSeaLevel = 0;
+  let atSeaLevel = 0;
+  let aboveSeaLevel = 0;
 
   for (let r = 0; r < rows; r++) {
     for (let q = 0; q < cols; q++) {
@@ -67,15 +102,43 @@ export function generateHexMap(seed: number, config: HexMapConfig) {
       const elevation = noiseHeight * 0.7 + gradient * 0.3;
       const isLand = elevation > seaLevel;
 
+      // Track elevation statistics
+      minElev = Math.min(minElev, elevation);
+      maxElev = Math.max(maxElev, elevation);
+      totalElev += elevation;
+      
+      if (elevation < seaLevel) belowSeaLevel++;
+      else if (Math.abs(elevation - seaLevel) < 0.001) atSeaLevel++;
+      else aboveSeaLevel++;
+
       hexes.push({ q, r, x, y, elevation, isLand });
     }
   }
 
+  const avgElev = totalElev / hexes.length;
+  const initialLandHexes = hexes.filter(h => h.isLand).length;
+
+  if (debug) {
+    console.log('\n--- Elevation Statistics ---');
+    console.log(`Elevation range: ${minElev.toFixed(3)} to ${maxElev.toFixed(3)}`);
+    console.log(`Average elevation: ${avgElev.toFixed(3)}`);
+    console.log(`Below sea level: ${belowSeaLevel} hexes (${(belowSeaLevel/hexes.length*100).toFixed(1)}%)`);
+    console.log(`At sea level: ${atSeaLevel} hexes (${(atSeaLevel/hexes.length*100).toFixed(1)}%)`);
+    console.log(`Above sea level: ${aboveSeaLevel} hexes (${(aboveSeaLevel/hexes.length*100).toFixed(1)}%)`);
+    console.log(`Initial land hexes: ${initialLandHexes} (${(initialLandHexes/hexes.length*100).toFixed(1)}%)`);
+  }
+
   // Speck removal: any land hex with fewer than two adjacent land neighbors is reclassified as water
+  if (debug) {
+    console.log('\n=== STEP 2: SPECK REMOVAL ===');
+  }
+
   const hexIndex = (q: number, r: number) => r * cols + q;
   const directions = [
     [+1, 0], [0, +1], [-1, +1], [-1, 0], [0, -1], [+1, -1] // pointy-top axial neighbors
   ];
+  
+  let speckRemoved = 0;
   for (let i = 0; i < hexes.length; i++) {
     const hex = hexes[i];
     if (!hex.isLand) continue;
@@ -90,8 +153,33 @@ export function generateHexMap(seed: number, config: HexMapConfig) {
     }
     if (landNeighbors < 2) {
       hex.isLand = false;
+      speckRemoved++;
     }
   }
 
-  return { hexes, seed, config };
+  const finalLandHexes = hexes.filter(h => h.isLand).length;
+
+  if (debug) {
+    console.log(`Speck removal: ${speckRemoved} isolated land hexes reclassified as water`);
+    console.log(`Final land hexes: ${finalLandHexes} (${(finalLandHexes/hexes.length*100).toFixed(1)}%)`);
+    console.log(`Land reduction: ${initialLandHexes - finalLandHexes} hexes (${((initialLandHexes - finalLandHexes)/initialLandHexes*100).toFixed(1)}% reduction)`);
+    console.log('=== END STEPS 1 & 2 ===\n');
+  }
+
+  const debugInfo: HexMapDebugInfo = {
+    totalHexes: hexes.length,
+    landHexes: finalLandHexes,
+    waterHexes: hexes.length - finalLandHexes,
+    minElevation: minElev,
+    maxElevation: maxElev,
+    avgElevation: avgElev,
+    speckRemoved: speckRemoved,
+    elevationStats: {
+      belowSeaLevel,
+      atSeaLevel,
+      aboveSeaLevel
+    }
+  };
+
+  return { hexes, seed, config, debugInfo };
 } 

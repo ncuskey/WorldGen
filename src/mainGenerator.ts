@@ -1,4 +1,4 @@
-import { generateHexMap, Hex, HexMapConfig } from './worldGenerator';
+import { generateHexMap, Hex, HexMapConfig, HexMapDebugInfo } from './worldGenerator';
 import { refineCoast } from './coastline';
 import { generateRivers, RiverResult } from './rivers';
 import { renderHexMap, RenderConfig } from './render';
@@ -37,6 +37,7 @@ export interface WorldResult {
   riverResult: RiverResult;
   coastEdges: { x: number, y: number }[][];
   config: WorldConfig;
+  debugInfo?: HexMapDebugInfo;
 }
 
 export function generateWorld(config: WorldConfig): WorldResult {
@@ -52,7 +53,7 @@ export function generateWorld(config: WorldConfig): WorldResult {
     seaLevel: config.seaLevel,
   };
   
-  const { hexes } = generateHexMap(config.seed, hexConfig);
+  const { hexes, debugInfo } = generateHexMap(config.seed, hexConfig, config.debugMode);
   
   // Step 2: Refine coastlines
   const { hexes: refinedHexes, coastEdges } = refineCoast(hexes, {
@@ -82,6 +83,7 @@ export function generateWorld(config: WorldConfig): WorldResult {
     riverResult,
     coastEdges,
     config,
+    debugInfo,
   };
 }
 

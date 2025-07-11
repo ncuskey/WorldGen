@@ -3,6 +3,7 @@ import './App.css';
 import { createNoise2D } from 'simplex-noise';
 import { generateWorld, WorldConfig } from './mainGenerator';
 import { renderWorld } from './mainGenerator';
+import { renderHexMap, RenderConfig } from './render';
 
 interface MapSettings {
   seed: number;
@@ -32,6 +33,10 @@ interface MapSettings {
   tertiaryStreamAccum: number;
   riverWidth: number;
   riverSmooth: number;
+  // Debug visualization settings
+  showHexOutlines: boolean;
+  showElevationHeatmap: boolean;
+  showLandWaterDebug: boolean;
 }
 
 interface Biome {
@@ -91,8 +96,13 @@ function App() {
     tertiaryStreamAccum: 10,
     riverWidth: 2,
     riverSmooth: 2,
+    // Debug visualization settings
+    showHexOutlines: false,
+    showElevationHeatmap: false,
+    showLandWaterDebug: false,
   });
   const [isGenerating, setIsGenerating] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
 
   // Create a seeded simplex noise instance for moisture
   const createSimplex = (seed: number) => {
@@ -160,9 +170,38 @@ function App() {
     };
 
     const worldResult = generateWorld(worldConfig);
+    
+    // Store debug info for display
+    if (worldResult.debugInfo) {
+      setDebugInfo(worldResult.debugInfo);
+    }
+
+    // Create render config with debug options
+    const renderConfig: RenderConfig = {
+      width: ctx.canvas.width,
+      height: ctx.canvas.height,
+      hexRadius: worldResult.config.hexRadius,
+      showRivers: worldResult.config.showRivers,
+      showFlowAccumulation: worldResult.config.showFlowAccumulation,
+      showCoastlines: worldResult.config.showCoastlines,
+      debugMode: worldResult.config.debugMode,
+      coastEdges: worldResult.coastEdges,
+      // Debug visualization options
+      showHexOutlines: settings.showHexOutlines,
+      showElevationHeatmap: settings.showElevationHeatmap,
+      showLandWaterDebug: settings.showLandWaterDebug,
+    };
 
     // Render the world
-    renderWorld(ctx, worldResult, moistureMap, biomes);
+    renderHexMap(
+      ctx,
+      worldResult.hexes,
+      worldResult.riverResult.riverPolylines,
+      moistureMap,
+      worldResult.riverResult.flowAccum,
+      renderConfig,
+      biomes
+    );
 
     setIsGenerating(false);
   }, [settings, simplexMoisture]);
@@ -273,6 +312,76 @@ function App() {
           <button onClick={handleRandomSeed}>Random Seed</button>
         </div>
         
+        {/* Debug Information Display */}
+        {debugInfo && (
+          <div className="debug-info" style={{ 
+            background: '#f0f0f0', 
+            padding: '10px', 
+            margin: '10px 0', 
+            borderRadius: '5px',
+            fontSize: '12px'
+          }}>
+            <h4>Debug Info (Steps 1 & 2)</h4>
+            <div>Total Hexes: {debugInfo.totalHexes}</div>
+            <div>Land Hexes: {debugInfo.landHexes} ({((debugInfo.landHexes/debugInfo.totalHexes)*100).toFixed(1)}%)</div>
+            <div>Water Hexes: {debugInfo.waterHexes} ({((debugInfo.waterHexes/debugInfo.totalHexes)*100).toFixed(1)}%)</div>
+            <div>Elevation Range: {debugInfo.minElevation.toFixed(3)} to {debugInfo.maxElevation.toFixed(3)}</div>
+            <div>Average Elevation: {debugInfo.avgElevation.toFixed(3)}</div>
+            <div>Speck Removal: {debugInfo.speckRemoved} hexes</div>
+            <div>Below Sea Level: {debugInfo.elevationStats.belowSeaLevel} ({((debugInfo.elevationStats.belowSeaLevel/debugInfo.totalHexes)*100).toFixed(1)}%)</div>
+            <div>Above Sea Level: {debugInfo.elevationStats.aboveSeaLevel} ({((debugInfo.elevationStats.aboveSeaLevel/debugInfo.totalHexes)*100).toFixed(1)}%)</div>
+          </div>
+        )}
+
+        {/* Debug Controls */}
+        <div className="control-group">
+          <label>
+            <input
+              type="checkbox"
+              checked={settings.debugOverlay}
+              onChange={(e) => setSettings(prev => ({ ...prev, debugOverlay: e.target.checked }))}
+            />
+            Enable Debug Mode
+          </label>
+        </div>
+
+        {settings.debugOverlay && (
+          <>
+            <div className="control-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.showHexOutlines}
+                  onChange={(e) => setSettings(prev => ({ ...prev, showHexOutlines: e.target.checked }))}
+                />
+                Show Hex Outlines
+              </label>
+            </div>
+            
+            <div className="control-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.showElevationHeatmap}
+                  onChange={(e) => setSettings(prev => ({ ...prev, showElevationHeatmap: e.target.checked }))}
+                />
+                Show Elevation Heatmap
+              </label>
+            </div>
+            
+            <div className="control-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.showLandWaterDebug}
+                  onChange={(e) => setSettings(prev => ({ ...prev, showLandWaterDebug: e.target.checked }))}
+                />
+                Show Land/Water Classification
+              </label>
+            </div>
+          </>
+        )}
+
         <div className="control-group">
           <label title="Controls the overall size of terrain features. Lower values create larger features, higher values create smaller, more detailed features.">
             Scale: {settings.scale}
@@ -526,17 +635,6 @@ function App() {
             </div>
           </>
         )}
-
-        <div className="control-group">
-          <label>
-            <input
-              type="checkbox"
-              checked={settings.debugOverlay}
-              onChange={(e) => setSettings(prev => ({ ...prev, debugOverlay: e.target.checked }))}
-            />
-            Debug Overlay
-          </label>
-        </div>
 
         <button onClick={handlePresetContinental}>Continental</button>
         <button onClick={handlePresetIslands}>Islands</button>
