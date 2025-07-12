@@ -5,6 +5,7 @@ import { generateWorld, WorldConfig } from './mainGenerator';
 import { renderWorld } from './mainGenerator';
 import { renderHexMap, RenderConfig } from './render';
 import { generateHexMapSteps } from './worldGenerator';
+import { collectBorderSegments } from './coastline';
 
 const STEP_LABELS = [
   '1. Raw Elevation (Heightmap)',
@@ -194,6 +195,21 @@ function App() {
       renderConfig,
       biomes
     );
+
+    // Region border overlay (debug, coast step only)
+    if (isCoastStep && settings.debugOverlay && steps.labeledHexes) {
+      const borders = collectBorderSegments(steps.labeledHexes, settings.hexCols, settings.hexRows, settings.hexRadius);
+      ctx.save();
+      ctx.strokeStyle = 'purple';
+      ctx.lineWidth = 2;
+      for (const seg of borders) {
+        ctx.beginPath();
+        ctx.moveTo(seg.start.x, seg.start.y);
+        ctx.lineTo(seg.end.x, seg.end.y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
 
     setIsGenerating(false);
   }, [settings, step]);

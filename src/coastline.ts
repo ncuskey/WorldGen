@@ -96,6 +96,7 @@ export function refineCoast(
   const loops = traceHexCoastline(hexes, cols, rows, radius);
   // Optionally smooth each loop again
   const smoothed = loops.map(loop => chaikinSmooth(loop, 2));
+
   return {
     hexes,
     coastEdges: smoothed
@@ -167,4 +168,38 @@ export function traceHexCoastline(hexes: Hex[], cols: number, rows: number, radi
 
   // 3. Smooth each loop
   return loops.map(loop => chaikinSmooth(loop, 2));
+}
+
+// Helper: Collect border segments between regions
+export function collectBorderSegments(
+  hexes: Hex[],
+  cols: number,
+  rows: number,
+  radius: number
+): { start: { x: number, y: number }, end: { x: number, y: number } }[] {
+  const directions = [
+    [+1, 0], [0, +1], [-1, +1],
+    [-1, 0], [0, -1], [+1, -1]
+  ];
+  const segments: { start: { x: number, y: number }, end: { x: number, y: number } }[] = [];
+  for (const hex of hexes) {
+    for (let d = 0; d < 6; d++) {
+      const [dq, dr] = directions[d];
+      const nq = hex.q + dq, nr = hex.r + dr;
+      const neighbor = (nq < 0 || nq >= cols || nr < 0 || nr >= rows)
+        ? undefined
+        : hexes[nr * cols + nq];
+      if (!neighbor || neighbor.region !== hex.region) {
+        // compute the two corner points
+        const angle0 = Math.PI/3 * d;
+        const angle1 = Math.PI/3 * (d+1);
+        const x0 = hex.x + radius * Math.cos(angle0);
+        const y0 = hex.y + radius * Math.sin(angle0);
+        const x1 = hex.x + radius * Math.cos(angle1);
+        const y1 = hex.y + radius * Math.sin(angle1);
+        segments.push({ start: { x: x0, y: y0 }, end: { x: x1, y: y1 } });
+      }
+    }
+  }
+  return segments;
 } 

@@ -10,6 +10,7 @@ export interface Hex {
   y: number; // pixel center y
   elevation: number;
   isLand: boolean;
+  region?: number; // optional region ID for region borders
 }
 
 export interface HexMapConfig {
@@ -110,6 +111,9 @@ export function generateHexMapSteps(seed: number, config: HexMapConfig, debug: b
     }
   }
 
+  // Step 3.5: Label contiguous land regions
+  labelLandRegions(speckHexes, cols, rows);
+
   // === Step 4: Coastline refinement using refineCoast for debug
   const { coastEdges } = refineCoast(speckHexes, { cols, rows, radius });
   const allLoops = coastEdges;
@@ -134,9 +138,44 @@ export function generateHexMapSteps(seed: number, config: HexMapConfig, debug: b
     speckHexes,
     refinedHexes,
     coastEdges,
+    labeledHexes: speckHexes, // now includes region labels
     config,
     seed
   };
+}
+
+// Label contiguous land regions with unique region IDs
+function labelLandRegions(hexes: Hex[], cols: number, rows: number): void {
+  let regionId = 1;
+  const hexIndex = (q: number, r: number) => r * cols + q;
+  const visited = new Set<number>();
+  const directions = [
+    [+1, 0], [0, +1], [-1, +1], [-1, 0], [0, -1], [+1, -1]
+  ];
+  for (let i = 0; i < hexes.length; i++) {
+    const hex = hexes[i];
+    if (!hex.isLand || visited.has(i)) continue;
+    // BFS to label all connected land hexes
+    const queue = [i];
+    while (queue.length > 0) {
+      const idx = queue.pop()!;
+      if (visited.has(idx)) continue;
+      visited.add(idx);
+      hexes[idx].region = regionId;
+      const h = hexes[idx];
+      for (const [dq, dr] of directions) {
+        const nq = h.q + dq;
+        const nr = h.r + dr;
+        if (nq >= 0 && nq < cols && nr >= 0 && nr < rows) {
+          const nidx = hexIndex(nq, nr);
+          if (!visited.has(nidx) && hexes[nidx].isLand) {
+            queue.push(nidx);
+          }
+        }
+      }
+    }
+    regionId++;
+  }
 }
 
 export function generateHexMap(seed: number, config: HexMapConfig, debug: boolean = false): { hexes: Hex[]; seed: number; config: HexMapConfig; debugInfo?: HexMapDebugInfo } {
