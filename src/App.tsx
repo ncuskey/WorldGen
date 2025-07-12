@@ -13,6 +13,7 @@ const STEP_LABELS = [
   '2. Land/Water Classification',
   '3. After Speck Removal',
   '4. Coastline Refinement',
+  '5. Hydrology', // New step
 ];
 
 interface MapSettings {
@@ -115,7 +116,7 @@ function App() {
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [debugInfo, setDebugInfo] = useState<any>(null);
-  const [step, setStep] = useState(0); // 0: elevation, 1: land/water, 2: speck removal, 3: coastline
+  const [step, setStep] = useState(0); // 0: elevation, 1: land/water, 2: speck removal, 3: coastline, 4: hydrology
   const [svgCoastline, setSvgCoastline] = useState<string>('');
 
   // Create a seeded simplex noise instance for moisture
@@ -158,8 +159,9 @@ function App() {
 
     // Pick which hexes to render based on step
     let hexesToRender = steps.rawHexes;
-    let renderMode: 'elevation' | 'landwater' | 'speck' | 'coast' = 'elevation';
+    let renderMode: 'elevation' | 'landwater' | 'speck' | 'coast' | 'hydrology' = 'elevation';
     let coastEdges: { x: number, y: number }[][] = [];
+    let mainCoastLoop: { x: number, y: number }[] = [];
     if (step === 1) {
       hexesToRender = steps.landWaterHexes;
       renderMode = 'landwater';
@@ -170,41 +172,96 @@ function App() {
       hexesToRender = steps.refinedHexes;
       renderMode = 'coast';
       coastEdges = steps.coastEdges || [];
+      mainCoastLoop = steps.mainCoastLoop || [];
       // Generate SVG coastline path using alpha shape
       const svgPath = hexesToCoastline(hexesToRender, settings.landThreshold);
       setSvgCoastline(svgPath);
+    } else if (step === 4) {
+      // Hydrology step
+      hexesToRender = steps.refinedHexes;
+      renderMode = 'hydrology';
+      mainCoastLoop = steps.mainCoastLoop || [];
+      // No need to setSvgCoastline here
     } else {
       setSvgCoastline('');
     }
 
     // Render according to step
     const isCoastStep = renderMode === 'coast';
-    const renderConfig: RenderConfig = {
-      width: ctx.canvas.width,
-      height: ctx.canvas.height,
-      hexRadius: settings.hexRadius,
-      showRivers: false,
-      showFlowAccumulation: false,
-      showCoastlines: isCoastStep,
-      debugMode: true,
-      coastEdges: coastEdges,
-      // also show your land/water colors underneath the smoothed coast
-      showLandWaterDebug: renderMode === 'landwater' || renderMode === 'speck' || renderMode === 'coast',
-      showHexOutlines: false,
-      showElevationHeatmap: renderMode === 'elevation',
-    };
-    renderHexMap(
-      ctx,
-      hexesToRender,
-      [], // no rivers
-      [], // no moisture
-      [], // no flowAccum
-      renderConfig,
-      biomes
-    );
-
-    // Region border overlay (debug, coast step only)
-
+    const isHydrologyStep = renderMode === 'hydrology';
+    if (!isHydrologyStep) {
+      const renderConfig: RenderConfig = {
+        width: ctx.canvas.width,
+        height: ctx.canvas.height,
+        hexRadius: settings.hexRadius,
+        showRivers: false,
+        showFlowAccumulation: false,
+        showCoastlines: isCoastStep,
+        debugMode: true,
+        coastEdges: coastEdges,
+        showLandWaterDebug: renderMode === 'landwater' || renderMode === 'speck' || renderMode === 'coast',
+        showHexOutlines: false,
+        showElevationHeatmap: renderMode === 'elevation',
+      };
+      renderHexMap(
+        ctx,
+        hexesToRender,
+        [], // no rivers
+        [], // no moisture
+        [], // no flowAccum
+        renderConfig,
+        biomes
+      );
+    } else {
+      // Step 5: Hydrology rendering pipeline
+      // TODO: Replace with actual lake/rivers logic
+      const OCEAN_COLOR = '#a3b9d7';
+      const LAND_COLOR = '#e9e4c7';
+      const SHALLOW_WATER_COLOR = '#3b82f6';
+      const RIVER_COLOR = '#4a90e2';
+      const COASTLINE_COLOR = '#3d2914';
+      const { width, height } = ctx.canvas;
+      // 1) Draw ocean background
+      ctx.fillStyle = OCEAN_COLOR;
+      ctx.fillRect(0, 0, width, height);
+      // 2) Clip to land polygon (no lakes for now)
+      ctx.save();
+      ctx.beginPath();
+      if (mainCoastLoop.length > 0) {
+        ctx.moveTo(mainCoastLoop[0].x, mainCoastLoop[0].y);
+        for (let i = 1; i < mainCoastLoop.length; i++) {
+          ctx.lineTo(mainCoastLoop[i].x, mainCoastLoop[i].y);
+        }
+        ctx.closePath();
+        ctx.clip();
+        // Draw elevation heatmap inside land
+        // Assuming drawElevationHeatmap is defined elsewhere or will be added
+        // For now, we'll just draw a placeholder or remove if not available
+        // drawElevationHeatmap(ctx, hexesToRender, {
+        //   width, height,
+        //   hexRadius: settings.hexRadius,
+        //   debugMode: false,
+        //   showElevationHeatmap: true,
+        //   showHexOutlines: false,
+        //   showLandWaterDebug: false,
+        //   showCoastlines: false,
+        // });
+      }
+      ctx.restore();
+      // 3) (Optional) Fill lakes, draw rivers, etc. (future steps)
+      // 4) Draw final coastline outline
+      if (mainCoastLoop.length > 0) {
+        ctx.strokeStyle = COASTLINE_COLOR;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(mainCoastLoop[0].x, mainCoastLoop[0].y);
+        for (let i = 1; i < mainCoastLoop.length; i++) {
+          ctx.lineTo(mainCoastLoop[i].x, mainCoastLoop[i].y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+    }
     setIsGenerating(false);
   }, [settings, step]);
 
@@ -664,7 +721,7 @@ function App() {
 
         <div className="control-group">
           <label>Step-by-step Debug:</label>
-          <button onClick={() => setStep(s => (s + 1) % 4)} disabled={isGenerating}>
+          <button onClick={() => setStep(s => (s + 1) % 5)} disabled={isGenerating}>
             Next Step
           </button>
           <span style={{ marginLeft: 10, fontWeight: 'bold' }}>{STEP_LABELS[step]}</span>

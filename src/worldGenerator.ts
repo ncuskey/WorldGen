@@ -114,31 +114,44 @@ export function generateHexMapSteps(seed: number, config: HexMapConfig, debug: b
   // Step 3.5: Label contiguous land regions
   labelLandRegions(speckHexes, cols, rows);
 
-  // === Step 4: Coastline refinement using refineCoast for debug
-  const { coastEdges } = refineCoast(speckHexes, { cols, rows, radius });
-  const allLoops = coastEdges;
-  function polygonArea(pts: {x:number,y:number}[]) {
-    let sum = 0;
-    for (let i = 0; i < pts.length; i++) {
-      const j = (i + 1) % pts.length;
-      sum += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
-    }
-    return 0.5 * sum;
-  }
-  console.log('🔧 using refineCoast, loops:', coastEdges.length, 'points:', coastEdges[0]?.length);
+  // Log number of land hexes after speck removal
+  console.log('Land hexes after speck removal:', speckHexes.filter(h => h.isLand).length);
 
-  // Debug logs to verify loop tracing
-  console.log(`⚓️ found ${allLoops.length} coastline loops`);
-  console.log(`⚓️ loop lengths:`, allLoops.map(l => l.length));
-  console.log(`⚓️ loop areas:`, allLoops.map(l => Math.abs(polygonArea(l)).toFixed(0)));
-  let refinedHexes = speckHexes;
+  // === Step 4: Coastline refinement using refineCoast for debug
+  const { coastEdges, hexes: refinedHexes } = refineCoast(speckHexes, { cols, rows, radius, erosionPasses: 0, dilationPasses: 0 });
+  // Log number of land hexes after refineCoast
+  console.log('Land hexes after refineCoast:', refinedHexes.filter(h => h.isLand).length);
+
+  // Helper to compute polygon area
+  const polygonArea = (pts: { x: number, y: number }[]) =>
+    pts.reduce((sum, p, i) => {
+      const q = pts[(i + 1) % pts.length];
+      return sum + p.x * q.y - q.x * p.y;
+    }, 0) * 0.5;
+
+  // Sort loops by absolute area, descending
+  const loops = coastEdges.slice().sort((A, B) =>
+    Math.abs(polygonArea(B)) - Math.abs(polygonArea(A))
+  );
+
+  // Pick the largest one (or empty if nothing)
+  const mainLoop = loops.length > 0 ? loops[0] : [];
+
+  // Debug logs
+  console.log('coastEdges count:', coastEdges.length);
+  console.log('coastEdges lengths:', coastEdges.map(l => l.length));
+  console.log('coastEdges areas:', coastEdges.map(l => Math.abs(polygonArea(l))));
+  console.log('mainCoastLoop length:', mainLoop.length);
+  console.log('mainCoastLoop points:', mainLoop.slice(0, 5));
+
   return {
     rawHexes,
     landWaterHexes,
     speckHexes,
-    refinedHexes,
-    coastEdges,
-    labeledHexes: speckHexes, // now includes region labels
+    refinedHexes,   // your hex data already updated to the smoothed coast mask
+    coastEdges: loops,  // _all_ loops (if you really need them)
+    mainCoastLoop: mainLoop, // the single outer coastline
+    labeledHexes: speckHexes, // for region borders if needed
     config,
     seed
   };
