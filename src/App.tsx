@@ -180,10 +180,10 @@ function App() {
       showCoastlines: isCoastStep,
       debugMode: true,
       coastEdges: coastEdges,
-      // Only show land/water debug for steps 1-3, not coast step
+      // step 0 = heightmap, steps 1-2 = land/water, step 3 = coastline
+      showElevationHeatmap: renderMode === 'elevation',
       showLandWaterDebug: renderMode === 'landwater' || renderMode === 'speck',
       showHexOutlines: false,
-      showElevationHeatmap: false,
     };
     renderHexMap(
       ctx,
