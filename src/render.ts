@@ -84,7 +84,12 @@ export function renderHexMap(
     drawLandWaterDebug(ctx, hexes, config);
   }
 
-  // For debug: stroke the coastline loop(s) in red instead of filling
+  // Always fill the land with holes for lakes/islands
+  if (showCoastlines && coastEdges && coastEdges.length > 0) {
+    fillCoastlinesWithHoles(ctx, coastEdges, LAND_COLOR);
+  }
+
+  // In debug mode, draw the raw loop on top in red
   if (showCoastlines && debugMode && coastEdges && coastEdges.length > 0) {
     ctx.save();
     ctx.strokeStyle = 'red';
@@ -99,8 +104,6 @@ export function renderHexMap(
       ctx.stroke();
     }
     ctx.restore();
-  } else if (showCoastlines && coastEdges && coastEdges.length > 0) {
-    fillCoastlinesWithHoles(ctx, coastEdges, LAND_COLOR);
   }
 
   // Debug mode: Show hex outlines

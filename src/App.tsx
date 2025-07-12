@@ -6,6 +6,7 @@ import { renderWorld } from './mainGenerator';
 import { renderHexMap, RenderConfig } from './render';
 import { generateHexMapSteps } from './worldGenerator';
 import { collectBorderSegments } from './coastline';
+import { hexesToCoastline } from './utils/coastlineSmoother';
 
 const STEP_LABELS = [
   '1. Raw Elevation (Heightmap)',
@@ -115,6 +116,7 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [step, setStep] = useState(0); // 0: elevation, 1: land/water, 2: speck removal, 3: coastline
+  const [svgCoastline, setSvgCoastline] = useState<string>('');
 
   // Create a seeded simplex noise instance for moisture
   const createSimplex = (seed: number) => {
@@ -168,6 +170,11 @@ function App() {
       hexesToRender = steps.refinedHexes;
       renderMode = 'coast';
       coastEdges = steps.coastEdges || [];
+      // Generate SVG coastline path using alpha shape
+      const svgPath = hexesToCoastline(hexesToRender, settings.landThreshold);
+      setSvgCoastline(svgPath);
+    } else {
+      setSvgCoastline('');
     }
 
     // Render according to step
@@ -677,7 +684,7 @@ function App() {
         </div>
       </div>
       
-      <div className="map-container">
+      <div className="map-container" style={{ position: 'relative', width: settings.width, height: settings.height }}>
         {isGenerating && <div className="loading">Generating map...</div>}
         <canvas
           ref={canvasRef}
@@ -685,6 +692,23 @@ function App() {
           width={settings.width}
           height={settings.height}
         />
+        {/* SVG coastline overlay for alpha shape, only on coast step */}
+        {step === 3 && svgCoastline && (
+          <svg
+            width={settings.width}
+            height={settings.height}
+            style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
+          >
+            <path
+              d={svgCoastline}
+              fill="#d7cca1"
+              stroke="#3d2914"
+              strokeWidth={2}
+              filter="url(#ink)"
+            />
+            {/* Optional: add SVG filter defs here or in your HTML */}
+          </svg>
+        )}
       </div>
       
       <div className="biome-legend">
