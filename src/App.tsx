@@ -79,6 +79,14 @@ function isLakeCell(x: number, y: number, lakes: [number, number][]) {
   return false;
 }
 
+// Helper: polygon-area
+function polygonArea(pts: {x:number,y:number}[]) {
+  return pts.reduce((sum,p,i) => {
+    const q = pts[(i+1)%pts.length];
+    return sum + p.x*q.y - q.x*p.y;
+  }, 0) * 0.5;
+}
+
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [settings, setSettings] = useState<MapSettings>({
@@ -178,7 +186,7 @@ function App() {
       const svgPath = hexesToCoastline(hexesToRender, settings.landThreshold);
       setSvgCoastline(svgPath);
     } else if (step === 4) {
-      // Hydrology step: use full generator for robust output
+      // Step 4: Hydrology (Rivers & Lakes)
       const world = generateWorld({
         seed: settings.seed,
         hexRadius: settings.hexRadius,
@@ -217,22 +225,20 @@ function App() {
         showCoastlines: true,
         debugMode: false,
         coastEdges: world.coastEdges,
-        showHexOutlines: false,
-        showElevationHeatmap: false,
-        showLandWaterDebug: false,
+        showHexOutlines: settings.showHexOutlines,
+        showElevationHeatmap: settings.showElevationHeatmap,
+        showLandWaterDebug: settings.showLandWaterDebug,
       };
 
       renderHexMap(
         ctx,
         world.hexes,
         world.riverResult.riverPolylines,
-        [], // moisture (unused)
+        [], // moisture map (not used yet)
         world.riverResult.flowAccum,
         renderConfig,
         biomes
       );
-    } else {
-      setSvgCoastline('');
     }
 
     // Render according to step
