@@ -92,66 +92,13 @@ export function refineCoast(
     for (const i of toLand) hexes[i].isLand = true;
   }
 
-  // Trace land-water boundaries
-  const coastEdges: { x: number, y: number }[][] = [];
-  const visited: boolean[][] = Array(rows).fill(null).map(() => Array(cols).fill(false));
-  for (let r = 0; r < rows; r++) {
-    for (let q = 0; q < cols; q++) {
-      const i = hexIndex(q, r, cols);
-      const hex = hexes[i];
-      if (!hex.isLand) continue;
-      for (const [dq, dr] of directions) {
-        const nq = q + dq;
-        const nr = r + dr;
-        if (nq >= 0 && nq < cols && nr >= 0 && nr < rows) {
-          const neighbor = hexes[hexIndex(nq, nr, cols)];
-          if (!neighbor.isLand && !visited[r][q]) {
-            // Start tracing this edge
-            const edge: { x: number, y: number }[] = [];
-            let currQ = q, currR = r;
-            for (let step = 0; step < 1000; step++) {
-              if (visited[currR][currQ]) break;
-              visited[currR][currQ] = true;
-              edge.push({ x: hexes[hexIndex(currQ, currR, cols)].x, y: hexes[hexIndex(currQ, currR, cols)].y });
-              // Find next land-water boundary neighbor
-              let found = false;
-              for (const [ndq, ndr] of directions) {
-                const nnq = currQ + ndq;
-                const nnr = currR + ndr;
-                if (nnq >= 0 && nnq < cols && nnr >= 0 && nnr < rows) {
-                  const nhex = hexes[hexIndex(nnq, nnr, cols)];
-                  if (nhex.isLand && !visited[nnr][nnq]) {
-                    currQ = nnq;
-                    currR = nnr;
-                    found = true;
-                    break;
-                  }
-                }
-              }
-              if (!found) break;
-            }
-            if (edge.length > 2) coastEdges.push(chaikinSmooth(edge, 2));
-          }
-        }
-      }
-    }
-  }
-
-  // At the end of refineCoast, only return the single outermost coastline loop (by area)
-  function signedArea(pts: { x: number, y: number }[]) {
-    let sum = 0;
-    for (let i = 0; i < pts.length; i++) {
-      const j = (i + 1) % pts.length;
-      sum += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
-    }
-    return sum * 0.5;
-  }
-  const outer = coastEdges.reduce((best, loop) => {
-    return Math.abs(signedArea(loop)) > Math.abs(signedArea(best)) ? loop : best;
-  }, coastEdges[0]);
+  // Now trace *actual edge* segments into loops:
+  const loops = traceHexCoastline(hexes, cols, rows, radius);
+  // Optionally smooth each loop again
+  const smoothed = loops.map(loop => chaikinSmooth(loop, 2));
   return {
     hexes,
-    coastEdges: [ outer ] // only keep the outermost ring
+    coastEdges: smoothed
   };
 }
 
