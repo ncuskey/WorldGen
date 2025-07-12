@@ -187,6 +187,7 @@ function App() {
       setSvgCoastline(svgPath);
     } else if (step === 4) {
       // Step 4: Hydrology (Rivers & Lakes)
+      renderMode = 'hydrology';
       const world = generateWorld({
         seed: settings.seed,
         hexRadius: settings.hexRadius,
@@ -267,55 +268,6 @@ function App() {
         renderConfig,
         biomes
       );
-    } else {
-      // Step 5: Hydrology rendering pipeline
-      // TODO: Replace with actual lake/rivers logic
-      const OCEAN_COLOR = '#a3b9d7';
-      const LAND_COLOR = '#e9e4c7';
-      const SHALLOW_WATER_COLOR = '#3b82f6';
-      const RIVER_COLOR = '#4a90e2';
-      const COASTLINE_COLOR = '#3d2914';
-      const { width, height } = ctx.canvas;
-      // 1) Draw ocean background
-      ctx.fillStyle = OCEAN_COLOR;
-      ctx.fillRect(0, 0, width, height);
-      // 2) Clip to land polygon (no lakes for now)
-      ctx.save();
-      ctx.beginPath();
-      if (mainCoastLoop.length > 0) {
-        ctx.moveTo(mainCoastLoop[0].x, mainCoastLoop[0].y);
-        for (let i = 1; i < mainCoastLoop.length; i++) {
-          ctx.lineTo(mainCoastLoop[i].x, mainCoastLoop[i].y);
-        }
-        ctx.closePath();
-        ctx.clip();
-        // Draw elevation heatmap inside land
-        // Assuming drawElevationHeatmap is defined elsewhere or will be added
-        // For now, we'll just draw a placeholder or remove if not available
-        // drawElevationHeatmap(ctx, hexesToRender, {
-        //   width, height,
-        //   hexRadius: settings.hexRadius,
-        //   debugMode: false,
-        //   showElevationHeatmap: true,
-        //   showHexOutlines: false,
-        //   showLandWaterDebug: false,
-        //   showCoastlines: false,
-        // });
-      }
-      ctx.restore();
-      // 3) (Optional) Fill lakes, draw rivers, etc. (future steps)
-      // 4) Draw final coastline outline
-      if (mainCoastLoop.length > 0) {
-        ctx.strokeStyle = COASTLINE_COLOR;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(mainCoastLoop[0].x, mainCoastLoop[0].y);
-        for (let i = 1; i < mainCoastLoop.length; i++) {
-          ctx.lineTo(mainCoastLoop[i].x, mainCoastLoop[i].y);
-        }
-        ctx.closePath();
-        ctx.stroke();
-      }
     }
     setIsGenerating(false);
   }, [settings, step]);
