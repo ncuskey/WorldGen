@@ -119,12 +119,16 @@ export function generateHexMapSteps(seed: number, config: HexMapConfig, debug: b
     }
     return 0.5 * sum;
   }
-  const allLoops = traceHexCoastline(speckHexes, cols, rows, radius);
-  const mainLoop = allLoops.reduce((winner, loop) =>
-    Math.abs(polygonArea(loop)) > Math.abs(polygonArea(winner)) ? loop : winner,
-    allLoops[0]
-  );
-  const coastEdges = [mainLoop];
+  const allLoops = traceHexCoastline(speckHexes, cols, rows, radius)
+    .filter(loop => loop.length > 2 && Math.abs(polygonArea(loop)) > 1e-3);
+  let coastEdges: { x: number, y: number }[][] = [];
+  if (allLoops.length > 0) {
+    const mainLoop = allLoops.reduce((winner, loop) =>
+      Math.abs(polygonArea(loop)) > Math.abs(polygonArea(winner)) ? loop : winner,
+      allLoops[0]
+    );
+    coastEdges = [mainLoop];
+  }
   const refinedHexes = speckHexes;
   return {
     rawHexes,

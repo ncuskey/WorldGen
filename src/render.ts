@@ -84,8 +84,22 @@ export function renderHexMap(
     drawLandWaterDebug(ctx, hexes, config);
   }
 
-  // Fill all landmasses using coastline polylines whenever showCoastlines is enabled
-  if (showCoastlines && coastEdges && coastEdges.length > 0) {
+  // For debug: stroke the coastline loop(s) in red instead of filling
+  if (showCoastlines && debugMode && coastEdges && coastEdges.length > 0) {
+    ctx.save();
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 2;
+    for (const loop of coastEdges) {
+      ctx.beginPath();
+      ctx.moveTo(loop[0].x, loop[0].y);
+      for (let i = 1; i < loop.length; i++) {
+        ctx.lineTo(loop[i].x, loop[i].y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+    ctx.restore();
+  } else if (showCoastlines && coastEdges && coastEdges.length > 0) {
     fillCoastlines(ctx, coastEdges, LAND_COLOR);
   }
 
