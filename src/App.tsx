@@ -204,19 +204,6 @@ function App() {
     );
 
     // Region border overlay (debug, coast step only)
-    if (isCoastStep && settings.debugOverlay && steps.labeledHexes) {
-      const borders = collectBorderSegments(steps.labeledHexes, settings.hexCols, settings.hexRows, settings.hexRadius);
-      ctx.save();
-      ctx.strokeStyle = 'purple';
-      ctx.lineWidth = 2;
-      for (const seg of borders) {
-        ctx.beginPath();
-        ctx.moveTo(seg.start.x, seg.start.y);
-        ctx.lineTo(seg.end.x, seg.end.y);
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
 
     setIsGenerating(false);
   }, [settings, step]);

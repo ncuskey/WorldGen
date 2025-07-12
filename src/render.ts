@@ -89,23 +89,6 @@ export function renderHexMap(
     fillCoastlinesWithHoles(ctx, coastEdges, LAND_COLOR);
   }
 
-  // In debug mode, draw the raw loop on top in red
-  if (showCoastlines && debugMode && coastEdges && coastEdges.length > 0) {
-    ctx.save();
-    ctx.strokeStyle = 'red';
-    ctx.lineWidth = 2;
-    for (const loop of coastEdges) {
-      ctx.beginPath();
-      ctx.moveTo(loop[0].x, loop[0].y);
-      for (let i = 1; i < loop.length; i++) {
-        ctx.lineTo(loop[i].x, loop[i].y);
-      }
-      ctx.closePath();
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
   // Debug mode: Show hex outlines
   if (debugMode && showHexOutlines) {
     drawHexOutlines(ctx, hexes, config);
