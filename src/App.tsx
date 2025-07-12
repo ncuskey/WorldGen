@@ -180,10 +180,10 @@ function App() {
       showCoastlines: isCoastStep,
       debugMode: true,
       coastEdges: coastEdges,
-      // step 0 = heightmap, steps 1-2 = land/water, step 3 = coastline
-      showElevationHeatmap: renderMode === 'elevation',
-      showLandWaterDebug: renderMode === 'landwater' || renderMode === 'speck',
+      // also show your land/water colors underneath the smoothed coast
+      showLandWaterDebug: renderMode === 'landwater' || renderMode === 'speck' || renderMode === 'coast',
       showHexOutlines: false,
+      showElevationHeatmap: renderMode === 'elevation',
     };
     renderHexMap(
       ctx,

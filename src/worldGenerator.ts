@@ -1,6 +1,7 @@
 import { createNoise2D } from 'simplex-noise';
 import { refineCoast } from './coastline';
 import { chaikinSmooth } from './coastline';
+import { traceHexCoastline } from './coastline';
 
 export interface Hex {
   q: number; // axial q
@@ -109,16 +110,22 @@ export function generateHexMapSteps(seed: number, config: HexMapConfig, debug: b
     }
   }
 
-  // === Step 4: Coastline refinement, but skip any morphological
-  const { hexes: refinedHexes, coastEdges } = refineCoast(speckHexes, {
-    cols,
-    rows,
-    radius,
-    erosionPasses: 0,
-    dilationPasses: 0,
-    coastNoiseSeed: seed,
-  });
-  // coastEdges already is [chaikinSmooth(edge,2)] for only the outer loop
+  // === Step 4: Coastline refinement using hex-edge tracing
+  function polygonArea(pts: {x:number,y:number}[]) {
+    let sum = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const j = (i + 1) % pts.length;
+      sum += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+    }
+    return 0.5 * sum;
+  }
+  const allLoops = traceHexCoastline(speckHexes, cols, rows, radius);
+  const mainLoop = allLoops.reduce((winner, loop) =>
+    Math.abs(polygonArea(loop)) > Math.abs(polygonArea(winner)) ? loop : winner,
+    allLoops[0]
+  );
+  const coastEdges = [mainLoop];
+  const refinedHexes = speckHexes;
   return {
     rawHexes,
     landWaterHexes,

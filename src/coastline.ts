@@ -153,4 +153,70 @@ export function refineCoast(
     hexes,
     coastEdges: [ outer ] // only keep the outermost ring
   };
+}
+
+// Helper: Given a hex grid, trace all land-water edges and stitch into loops
+export function traceHexCoastline(hexes: Hex[], cols: number, rows: number, radius: number): { x: number, y: number }[][] {
+  // Pointy-top hex axial directions and their edge endpoints (relative to hex center)
+  const directions = [
+    [+1, 0], [0, +1], [-1, +1], [-1, 0], [0, -1], [+1, -1]
+  ];
+  // For each direction, the two endpoints of the edge (in local hex coordinates)
+  const edgeOffsets = [
+    [0.5, Math.sqrt(3)/2], [0, 1], [-0.5, Math.sqrt(3)/2],
+    [-0.5, -Math.sqrt(3)/2], [0, -1], [0.5, -Math.sqrt(3)/2]
+  ];
+
+  // Helper: get hex index in flat array
+  function hexIndex(q: number, r: number) { return r * cols + q; }
+  function pointsEqual(a: {x:number,y:number}, b: {x:number,y:number}) {
+    return Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6;
+  }
+
+  // 1. Collect all coastline segments
+  const segments: { start: {x:number,y:number}, end: {x:number,y:number} }[] = [];
+  for (let i = 0; i < hexes.length; i++) {
+    const hex = hexes[i];
+    if (!hex.isLand) continue;
+    for (let d = 0; d < 6; d++) {
+      const [dq, dr] = directions[d];
+      const nq = hex.q + dq;
+      const nr = hex.r + dr;
+      let neighbor: Hex | undefined = undefined;
+      if (nq >= 0 && nq < cols && nr >= 0 && nr < rows) {
+        neighbor = hexes[hexIndex(nq, nr)];
+      }
+      if (!neighbor || neighbor.isLand === false) {
+        // This side is a coastline segment
+        // Compute endpoints in pixel space
+        const angle0 = Math.PI/3 * d;
+        const angle1 = Math.PI/3 * (d+1);
+        const x0 = hex.x + radius * Math.cos(angle0);
+        const y0 = hex.y + radius * Math.sin(angle0);
+        const x1 = hex.x + radius * Math.cos(angle1);
+        const y1 = hex.y + radius * Math.sin(angle1);
+        segments.push({ start: {x: x0, y: y0}, end: {x: x1, y: y1} });
+      }
+    }
+  }
+
+  // 2. Stitch segments into ordered loops
+  const loops: { x: number, y: number }[][] = [];
+  const segs = segments.slice();
+  while (segs.length) {
+    const { start, end } = segs.pop()!;
+    const loop = [start, end];
+    let cursor = end;
+    while (!pointsEqual(cursor, start)) {
+      const idx = segs.findIndex(s => pointsEqual(s.start, cursor));
+      if (idx < 0) break;
+      const seg = segs.splice(idx, 1)[0];
+      loop.push(seg.end);
+      cursor = seg.end;
+    }
+    if (loop.length > 2) loops.push(loop);
+  }
+
+  // 3. Smooth each loop
+  return loops.map(loop => chaikinSmooth(loop, 2));
 } 
