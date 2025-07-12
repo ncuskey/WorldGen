@@ -180,8 +180,8 @@ function App() {
       showCoastlines: isCoastStep,
       debugMode: true,
       coastEdges: coastEdges,
-      // draw each refined hex so you can actually *see* the land cells
-      showLandWaterDebug: renderMode === 'landwater' || renderMode === 'speck' || isCoastStep,
+      // Only show land/water debug for steps 1-3, not coast step
+      showLandWaterDebug: renderMode === 'landwater' || renderMode === 'speck',
       showHexOutlines: false,
       showElevationHeatmap: false,
     };

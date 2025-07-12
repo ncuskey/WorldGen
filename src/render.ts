@@ -107,26 +107,38 @@ export function renderHexMap(
   ctx.restore();
 }
 
+// helper: signed area via shoelace formula
+function polygonArea(pts: {x:number,y:number}[]) {
+  let sum = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const j = (i + 1) % pts.length;
+    sum += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+  }
+  return 0.5 * sum;
+}
+
 function fillCoastlines(
   ctx: CanvasRenderingContext2D,
   coastEdges: { x: number, y: number }[][],
   landColor: string
 ) {
   if (coastEdges.length === 0) return;
+
+  // pick the loop with the largest absolute area
+  const mainLoop = coastEdges.reduce((winner, loop) => {
+    return Math.abs(polygonArea(loop)) > Math.abs(polygonArea(winner))
+      ? loop
+      : winner;
+  }, coastEdges[0]);
+
   ctx.save();
   ctx.fillStyle = landColor;
-
-  // sort loops descending by length and pick the first (largest)
-  const [mainLoop] = coastEdges.slice().sort((a, b) => b.length - a.length);
-
   ctx.beginPath();
-  mainLoop.forEach((pt, i) => i === 0
-    ? ctx.moveTo(pt.x, pt.y)
-    : ctx.lineTo(pt.x, pt.y)
+  mainLoop.forEach((pt, i) =>
+    i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y)
   );
   ctx.closePath();
   ctx.fill();
-
   ctx.restore();
 }
 

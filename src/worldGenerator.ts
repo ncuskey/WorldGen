@@ -1,5 +1,6 @@
 import { createNoise2D } from 'simplex-noise';
 import { refineCoast } from './coastline';
+import { chaikinSmooth } from './coastline';
 
 export interface Hex {
   q: number; // axial q
@@ -108,15 +109,33 @@ export function generateHexMapSteps(seed: number, config: HexMapConfig, debug: b
     }
   }
 
-  // Step 4: Coastline refinement
-  const { hexes: refinedHexes, coastEdges } = refineCoast(speckHexes, {
+  // Step 4: Coastline refinement (no erosion/dilation, just trace and smooth)
+  const { hexes: refinedHexes, coastEdges: loops } = refineCoast(speckHexes, {
     cols,
     rows,
     radius,
-    erosionPasses: 1,
-    dilationPasses: 1,
+    erosionPasses: 0,
+    dilationPasses: 0,
     coastNoiseSeed: seed,
   });
+  // pick the single outer loop
+  function signedArea(pts: { x:number, y:number }[]) {
+    let sum = 0;
+    for (let i=0; i<pts.length; i++) {
+      const j = (i+1) % pts.length;
+      sum += pts[i].x*pts[j].y - pts[j].x*pts[i].y;
+    }
+    return sum*0.5;
+  }
+  let outer = loops[0];
+  for (const loop of loops) {
+    if (Math.abs(signedArea(loop)) > Math.abs(signedArea(outer))) {
+      outer = loop;
+    }
+  }
+  // now run Chaikin’s smoothing top-end
+  const finalCoast = chaikinSmooth(outer, 4);  // 4 passes gives you very round curves
+  const coastEdges = [ finalCoast ];
 
   return {
     rawHexes,
