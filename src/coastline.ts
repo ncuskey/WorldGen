@@ -199,6 +199,7 @@ export function traceHexCoastline(hexes: Hex[], cols: number, rows: number, radi
       }
     }
   }
+  console.log(`🛣  total coastline segments: ${segments.length}`);
 
   // 2. Stitch segments into ordered loops
   const loops: { x: number, y: number }[][] = [];

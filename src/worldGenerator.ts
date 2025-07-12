@@ -110,7 +110,9 @@ export function generateHexMapSteps(seed: number, config: HexMapConfig, debug: b
     }
   }
 
-  // === Step 4: Coastline refinement using hex-edge tracing
+  // === Step 4: Coastline refinement using refineCoast for debug
+  const { coastEdges } = refineCoast(speckHexes, { cols, rows, radius });
+  const allLoops = coastEdges;
   function polygonArea(pts: {x:number,y:number}[]) {
     let sum = 0;
     for (let i = 0; i < pts.length; i++) {
@@ -119,17 +121,13 @@ export function generateHexMapSteps(seed: number, config: HexMapConfig, debug: b
     }
     return 0.5 * sum;
   }
-  const allLoops = traceHexCoastline(speckHexes, cols, rows, radius)
-    .filter(loop => loop.length > 2 && Math.abs(polygonArea(loop)) > 1e-3);
-  let coastEdges: { x: number, y: number }[][] = [];
-  if (allLoops.length > 0) {
-    const mainLoop = allLoops.reduce((winner, loop) =>
-      Math.abs(polygonArea(loop)) > Math.abs(polygonArea(winner)) ? loop : winner,
-      allLoops[0]
-    );
-    coastEdges = [mainLoop];
-  }
-  const refinedHexes = speckHexes;
+  console.log('🔧 using refineCoast, loops:', coastEdges.length, 'points:', coastEdges[0]?.length);
+
+  // Debug logs to verify loop tracing
+  console.log(`⚓️ found ${allLoops.length} coastline loops`);
+  console.log(`⚓️ loop lengths:`, allLoops.map(l => l.length));
+  console.log(`⚓️ loop areas:`, allLoops.map(l => Math.abs(polygonArea(l)).toFixed(0)));
+  let refinedHexes = speckHexes;
   return {
     rawHexes,
     landWaterHexes,
