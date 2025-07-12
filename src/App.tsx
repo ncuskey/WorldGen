@@ -170,18 +170,20 @@ function App() {
     }
 
     // Render according to step
+    const isCoastStep = renderMode === 'coast';
     const renderConfig: RenderConfig = {
       width: ctx.canvas.width,
       height: ctx.canvas.height,
       hexRadius: settings.hexRadius,
       showRivers: false,
       showFlowAccumulation: false,
-      showCoastlines: renderMode === 'coast',
+      showCoastlines: isCoastStep,
       debugMode: true,
       coastEdges: coastEdges,
-      showHexOutlines: renderMode !== 'coast',
-      showElevationHeatmap: renderMode === 'elevation',
-      showLandWaterDebug: renderMode === 'landwater' || renderMode === 'speck',
+      // draw each refined hex so you can actually *see* the land cells
+      showLandWaterDebug: renderMode === 'landwater' || renderMode === 'speck' || isCoastStep,
+      showHexOutlines: false,
+      showElevationHeatmap: false,
     };
     renderHexMap(
       ctx,

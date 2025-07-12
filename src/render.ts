@@ -53,7 +53,7 @@ export function renderHexMap(
   config: RenderConfig,
   biomes: Biome[] = defaultBiomes
 ) {
-  const { width, height, showRivers, showFlowAccumulation, debugMode, coastEdges, showHexOutlines, showElevationHeatmap, showLandWaterDebug, hexRadius } = config;
+  const { width, height, showRivers, showFlowAccumulation, debugMode, coastEdges, showHexOutlines, showElevationHeatmap, showLandWaterDebug, hexRadius, showCoastlines } = config;
 
   // Infer cols/rows from hexes if not present in config
   let cols = 0, rows = 0;
@@ -84,8 +84,8 @@ export function renderHexMap(
     drawLandWaterDebug(ctx, hexes, config);
   }
 
-  // Fill all landmasses using coastline polylines (only if not in debug mode)
-  if (!debugMode && coastEdges && coastEdges.length > 0) {
+  // Fill all landmasses using coastline polylines whenever showCoastlines is enabled
+  if (showCoastlines && coastEdges && coastEdges.length > 0) {
     fillCoastlines(ctx, coastEdges, LAND_COLOR);
   }
 
