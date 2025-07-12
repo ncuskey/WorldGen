@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import { createNoise2D } from 'simplex-noise';
-import { generateWorld, WorldConfig } from './mainGenerator';
-import { renderWorld } from './mainGenerator';
+import { generateWorld } from './mainGenerator';
 import { renderHexMap, RenderConfig } from './render';
 import { generateHexMapSteps } from './worldGenerator';
 import { collectBorderSegments } from './coastline';
@@ -179,113 +178,59 @@ function App() {
       const svgPath = hexesToCoastline(hexesToRender, settings.landThreshold);
       setSvgCoastline(svgPath);
     } else if (step === 4) {
-      // Hydrology step
-      hexesToRender = steps.refinedHexes;
-      renderMode = 'hydrology';
-      mainCoastLoop = steps.mainCoastLoop || [];
-
-      // 1. Generate rivers
-      const riverResult: RiverResult = generateRivers(
-        steps.refinedHexes, {
-          cols: settings.hexCols,
-          rows: settings.hexRows,
-          minSourceElev: settings.minSourceElev,
-          mainRiverAccum: settings.mainRiverAccum,
-          secondaryStreamAccum: settings.secondaryStreamAccum,
-          tertiaryStreamAccum: settings.tertiaryStreamAccum,
-          riverWidth: settings.riverWidth,
-          smooth: settings.riverSmooth,
-        }
-      );
-
-      // 2. Detect lakes
-      const waterHexes = steps.labeledHexes.filter(h => !h.isLand);
-      const lakesByRegion = new Map<number, typeof waterHexes>();
-      for (let hex of waterHexes) {
-        if (hex.region == null) continue;
-        const arr = lakesByRegion.get(hex.region) || [];
-        arr.push(hex);
-        lakesByRegion.set(hex.region, arr);
-      }
-      // Find ocean regions (touching border)
-      const oceanRegions = new Set<number>();
-      waterHexes.forEach(h => {
-        if (h.q === 0 || h.r === 0 || h.q === settings.hexCols - 1 || h.r === settings.hexRows - 1) {
-          oceanRegions.add(h.region!);
-        }
+      // Hydrology step: use full generator for robust output
+      const world = generateWorld({
+        seed: settings.seed,
+        hexRadius: settings.hexRadius,
+        cols: settings.hexCols,
+        rows: settings.hexRows,
+        octaves: settings.octaves,
+        persistence: settings.persistence,
+        lacunarity: settings.lacunarity,
+        noiseScale: settings.scale,
+        noiseWeight: settings.localDetailWeight,
+        shapeWeight: settings.globalShapeWeight,
+        gradientExponent: settings.gradientExponent,
+        seaLevel: settings.landThreshold,
+        minSourceElev: settings.minSourceElev,
+        mainRiverAccum: settings.mainRiverAccum,
+        tributaryAccum: settings.tributaryAccum,
+        secondaryStreamAccum: settings.secondaryStreamAccum,
+        tertiaryStreamAccum: settings.tertiaryStreamAccum,
+        riverWidth: settings.riverWidth,
+        riverSmooth: settings.riverSmooth,
+        erosionPasses: 1,
+        dilationPasses: 1,
+        coastNoiseSeed: 12345,
+        showRivers: true,
+        showFlowAccumulation: false,
+        showCoastlines: true,
+        debugMode: false,
       });
-      // All other water regions are lakes
-      const lakeLoops = Array.from(lakesByRegion.entries())
-        .filter(([reg, _]) => !oceanRegions.has(reg))
-        .map(([_, hexes]) => {
-          // trace their boundary just like your coastline:
-          return traceHexCoastline(
-            hexes.map(h => ({ ...h, isLand: true })),  // invert to treat them as “land”
-            settings.hexCols,
-            settings.hexRows,
-            settings.hexRadius
-          )[0] || [];
-        })
-        .filter(loop => loop.length > 2);
 
-      // 3. Render hydrology pipeline
-      const OCEAN_COLOR = '#a3b9d7';
-      const SHALLOW_WATER = '#3b82f6';
-      const RIVER_COLOR = '#4a90e2';
-      const COASTLINE_COLOR = '#3d2914';
-      const { width, height } = ctx.canvas;
-      // 1) ocean
-      ctx.fillStyle = OCEAN_COLOR;
-      ctx.fillRect(0, 0, width, height);
-      // 2) land + heatmap (clip to main coastLoop)
-      if (mainCoastLoop.length) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(mainCoastLoop[0].x, mainCoastLoop[0].y);
-        for (let pt of mainCoastLoop) ctx.lineTo(pt.x, pt.y);
-        ctx.closePath();
-        ctx.clip();
-        // drawElevationHeatmap lives in render.ts
-        // Assuming drawElevationHeatmap is defined elsewhere or will be added
-        // For now, we'll just draw a placeholder or remove if not available
-        // drawElevationHeatmap(ctx, steps.refinedHexes, {
-        //   width, height,
-        //   hexRadius: settings.hexRadius,
-        //   debugMode: false,
-        //   showElevationHeatmap: true,
-        //   showHexOutlines: false,
-        //   showLandWaterDebug: false,
-        //   showCoastlines: false,
-        // });
-        ctx.restore();
-      }
-      // 3) lakes
-      ctx.fillStyle = SHALLOW_WATER;
-      for (let loop of lakeLoops) {
-        ctx.beginPath();
-        ctx.moveTo(loop[0].x, loop[0].y);
-        for (let pt of loop) ctx.lineTo(pt.x, pt.y);
-        ctx.closePath();
-        ctx.fill();
-      }
-      // 4) rivers
-      ctx.strokeStyle = RIVER_COLOR;
-      ctx.lineCap = 'round';
-      for (let river of riverResult.riverPolylines) {
-        ctx.lineWidth = river.width * (river.order === 1 ? 2 : 1);
-        ctx.beginPath();
-        ctx.moveTo(river.path[0].x, river.path[0].y);
-        for (let p of river.path) ctx.lineTo(p.x, p.y);
-        ctx.stroke();
-      }
-      // 5) final coastline
-      ctx.strokeStyle = COASTLINE_COLOR;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(mainCoastLoop[0].x, mainCoastLoop[0].y);
-      for (let pt of mainCoastLoop) ctx.lineTo(pt.x, pt.y);
-      ctx.closePath();
-      ctx.stroke();
+      const renderConfig: RenderConfig = {
+        width: ctx.canvas.width,
+        height: ctx.canvas.height,
+        hexRadius: settings.hexRadius,
+        showRivers: true,
+        showFlowAccumulation: false,
+        showCoastlines: true,
+        debugMode: false,
+        coastEdges: world.coastEdges,
+        showHexOutlines: false,
+        showElevationHeatmap: false,
+        showLandWaterDebug: false,
+      };
+
+      renderHexMap(
+        ctx,
+        world.hexes,
+        world.riverResult.riverPolylines,
+        [], // moisture (unused)
+        world.riverResult.flowAccum,
+        renderConfig,
+        biomes
+      );
     } else {
       setSvgCoastline('');
     }
