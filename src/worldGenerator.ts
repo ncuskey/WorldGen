@@ -1,4 +1,5 @@
 import { createNoise2D } from 'simplex-noise';
+import { refineCoast } from './coastline';
 
 export interface Hex {
   q: number; // axial q
@@ -107,10 +108,22 @@ export function generateHexMapSteps(seed: number, config: HexMapConfig, debug: b
     }
   }
 
+  // Step 4: Coastline refinement
+  const { hexes: refinedHexes, coastEdges } = refineCoast(speckHexes, {
+    cols,
+    rows,
+    radius,
+    erosionPasses: 1,
+    dilationPasses: 1,
+    coastNoiseSeed: seed,
+  });
+
   return {
     rawHexes,
     landWaterHexes,
     speckHexes,
+    refinedHexes,
+    coastEdges,
     config,
     seed
   };

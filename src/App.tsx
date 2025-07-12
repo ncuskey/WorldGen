@@ -10,6 +10,7 @@ const STEP_LABELS = [
   '1. Raw Elevation (Heightmap)',
   '2. Land/Water Classification',
   '3. After Speck Removal',
+  '4. Coastline Refinement',
 ];
 
 interface MapSettings {
@@ -112,7 +113,7 @@ function App() {
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [debugInfo, setDebugInfo] = useState<any>(null);
-  const [step, setStep] = useState(0); // 0: elevation, 1: land/water, 2: speck removal
+  const [step, setStep] = useState(0); // 0: elevation, 1: land/water, 2: speck removal, 3: coastline
 
   // Create a seeded simplex noise instance for moisture
   const createSimplex = (seed: number) => {
@@ -154,13 +155,18 @@ function App() {
 
     // Pick which hexes to render based on step
     let hexesToRender = steps.rawHexes;
-    let renderMode: 'elevation' | 'landwater' | 'speck' = 'elevation';
+    let renderMode: 'elevation' | 'landwater' | 'speck' | 'coast' = 'elevation';
+    let coastEdges: { x: number, y: number }[][] = [];
     if (step === 1) {
       hexesToRender = steps.landWaterHexes;
       renderMode = 'landwater';
     } else if (step === 2) {
       hexesToRender = steps.speckHexes;
       renderMode = 'speck';
+    } else if (step === 3) {
+      hexesToRender = steps.refinedHexes;
+      renderMode = 'coast';
+      coastEdges = steps.coastEdges || [];
     }
 
     // Render according to step
@@ -170,12 +176,12 @@ function App() {
       hexRadius: settings.hexRadius,
       showRivers: false,
       showFlowAccumulation: false,
-      showCoastlines: false,
+      showCoastlines: renderMode === 'coast',
       debugMode: true,
-      coastEdges: [],
-      showHexOutlines: true,
+      coastEdges: coastEdges,
+      showHexOutlines: renderMode !== 'coast',
       showElevationHeatmap: renderMode === 'elevation',
-      showLandWaterDebug: renderMode !== 'elevation',
+      showLandWaterDebug: renderMode === 'landwater' || renderMode === 'speck',
     };
     renderHexMap(
       ctx,
@@ -646,7 +652,7 @@ function App() {
 
         <div className="control-group">
           <label>Step-by-step Debug:</label>
-          <button onClick={() => setStep(s => (s + 1) % 3)} disabled={isGenerating}>
+          <button onClick={() => setStep(s => (s + 1) % 4)} disabled={isGenerating}>
             Next Step
           </button>
           <span style={{ marginLeft: 10, fontWeight: 'bold' }}>{STEP_LABELS[step]}</span>
