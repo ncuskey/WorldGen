@@ -66,12 +66,13 @@ export function renderHexMap(
   const offsetX = (width - mapW) / 2;
   const offsetY = (height - mapH) / 2;
 
-  ctx.save();
-  ctx.translate(offsetX, offsetY);
-
-  // Fill ocean background
+  // 1) Paint the full-canvas ocean un-translated
   ctx.fillStyle = OCEAN_COLOR;
   ctx.fillRect(0, 0, width, height);
+
+  // 2) Now shift origin so the hex-grid is centered
+  ctx.save();
+  ctx.translate(offsetX, offsetY);
 
   // Debug mode: Show elevation heatmap
   if (debugMode && showElevationHeatmap) {

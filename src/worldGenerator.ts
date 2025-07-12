@@ -74,7 +74,9 @@ export function generateHexMapSteps(seed: number, config: HexMapConfig, debug: b
       const dy = y - centerY;
       const dist = Math.sqrt(dx * dx + dy * dy);
       const gradient = Math.pow(1 - dist / maxDist, gradientExponent);
-      const elevation = noiseHeight * noiseWeight + gradient * shapeWeight;
+      // Blend using user weights _and normalize_ so elevation stays in [0…1]
+      const weightedSum = noiseHeight * noiseWeight + gradient * shapeWeight;
+      const elevation = weightedSum / (noiseWeight + shapeWeight);
       rawHexes.push({ q, r, x, y, elevation, isLand: false });
     }
   }
@@ -177,9 +179,9 @@ export function generateHexMap(seed: number, config: HexMapConfig, debug: boolea
       const dist = Math.sqrt(dx * dx + dy * dy);
       const gradient = Math.pow(1 - dist / maxDist, gradientExponent);
 
-      // Blend using user weights
-      const elevation = noiseHeight * noiseWeight + gradient * shapeWeight;
-      const isLand = elevation > seaLevel;
+      // Blend using user weights _and normalize_ so elevation stays in [0…1]
+      const sum = noiseHeight * noiseWeight + gradient * shapeWeight;
+      const elevation = sum / (noiseWeight + shapeWeight);
 
       // Track elevation statistics
       minElev = Math.min(minElev, elevation);
@@ -190,7 +192,7 @@ export function generateHexMap(seed: number, config: HexMapConfig, debug: boolea
       else if (Math.abs(elevation - seaLevel) < 0.001) atSeaLevel++;
       else aboveSeaLevel++;
 
-      hexes.push({ q, r, x, y, elevation, isLand });
+      hexes.push({ q, r, x, y, elevation, isLand: elevation > seaLevel });
     }
   }
 

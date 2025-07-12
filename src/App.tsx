@@ -44,6 +44,7 @@ interface MapSettings {
   showHexOutlines: boolean;
   showElevationHeatmap: boolean;
   showLandWaterDebug: boolean;
+  gradientExponent: number; // new
 }
 
 interface Biome {
@@ -92,9 +93,9 @@ function App() {
     riverDensity: 0.3,
     debugOverlay: false,
     // Hex grid settings
-    hexRadius: 20,
-    hexCols: 50,
-    hexRows: 40,
+    hexRadius: 10, // default to 10
+    hexCols: 60,   // default to 60
+    hexRows: 50,   // default to 50
     // River settings
     minSourceElev: 0.5,
     mainRiverAccum: 20,
@@ -107,6 +108,7 @@ function App() {
     showHexOutlines: false,
     showElevationHeatmap: false,
     showLandWaterDebug: false,
+    gradientExponent: 1.2,
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [debugInfo, setDebugInfo] = useState<any>(null);
@@ -146,7 +148,7 @@ function App() {
       noiseScale: settings.scale,
       noiseWeight: settings.localDetailWeight,
       shapeWeight: settings.globalShapeWeight,
-      gradientExponent: 1.2,
+      gradientExponent: settings.gradientExponent, // now from UI
       seaLevel: settings.landThreshold,
     });
 
@@ -617,6 +619,20 @@ function App() {
             </div>
           </>
         )}
+
+        <div className="control-group">
+          <label title="Exponent for radial gradient. Higher = rounder continents, lower = more irregular.">
+            Gradient Exponent: {settings.gradientExponent.toFixed(2)}
+          </label>
+          <input
+            type="range"
+            min="0.5"
+            max="3.0"
+            step="0.01"
+            value={settings.gradientExponent}
+            onChange={e => setSettings(prev => ({ ...prev, gradientExponent: parseFloat(e.target.value) }))}
+          />
+        </div>
 
         <button onClick={handlePresetContinental}>Continental</button>
         <button onClick={handlePresetIslands}>Islands</button>
