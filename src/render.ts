@@ -100,7 +100,7 @@ export function renderHexMap(
     }
     ctx.restore();
   } else if (showCoastlines && coastEdges && coastEdges.length > 0) {
-    fillCoastlines(ctx, coastEdges, LAND_COLOR);
+    fillCoastlinesWithHoles(ctx, coastEdges, LAND_COLOR);
   }
 
   // Debug mode: Show hex outlines
@@ -131,28 +131,24 @@ function polygonArea(pts: {x:number,y:number}[]) {
   return 0.5 * sum;
 }
 
-function fillCoastlines(
+function fillCoastlinesWithHoles(
   ctx: CanvasRenderingContext2D,
   coastEdges: { x: number, y: number }[][],
   landColor: string
 ) {
   if (coastEdges.length === 0) return;
-
-  // pick the loop with the largest absolute area
-  const mainLoop = coastEdges.reduce((winner, loop) => {
-    return Math.abs(polygonArea(loop)) > Math.abs(polygonArea(winner))
-      ? loop
-      : winner;
-  }, coastEdges[0]);
-
   ctx.save();
   ctx.fillStyle = landColor;
   ctx.beginPath();
-  mainLoop.forEach((pt, i) =>
-    i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y)
-  );
-  ctx.closePath();
-  ctx.fill();
+  for (const loop of coastEdges) {
+    if (loop.length === 0) continue;
+    ctx.moveTo(loop[0].x, loop[0].y);
+    for (let i = 1; i < loop.length; i++) {
+      ctx.lineTo(loop[i].x, loop[i].y);
+    }
+    ctx.closePath();
+  }
+  ctx.fill('evenodd');
   ctx.restore();
 }
 
