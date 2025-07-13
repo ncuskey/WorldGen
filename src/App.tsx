@@ -61,17 +61,6 @@ interface Biome {
   maxMoisture: number;
 }
 
-const biomes: Biome[] = [
-  { name: 'Deep Ocean', color: '#1e3a8a', minHeight: -1, maxHeight: -0.3, minMoisture: -1, maxMoisture: 1 },
-  { name: 'Shallow Water', color: '#3b82f6', minHeight: -0.3, maxHeight: -0.1, minMoisture: -1, maxMoisture: 1 },
-  { name: 'Beach', color: '#fbbf24', minHeight: -0.1, maxHeight: 0, minMoisture: -1, maxMoisture: 1 },
-  { name: 'Plains', color: '#84cc16', minHeight: 0, maxHeight: 0.3, minMoisture: -1, maxMoisture: 0.3 },
-  { name: 'Forest', color: '#166534', minHeight: 0, maxHeight: 0.5, minMoisture: 0.3, maxMoisture: 1 },
-  { name: 'Hills', color: '#a3a3a3', minHeight: 0.3, maxHeight: 0.6, minMoisture: -1, maxMoisture: 1 },
-  { name: 'Mountains', color: '#6b7280', minHeight: 0.6, maxHeight: 1, minMoisture: -1, maxMoisture: 1 },
-  { name: 'Snow Peaks', color: '#ffffff', minHeight: 0.8, maxHeight: 1, minMoisture: -1, maxMoisture: 1 },
-];
-
 function isLakeCell(x: number, y: number, lakes: [number, number][]) {
   for (const [lx, ly] of lakes) {
     if (Math.abs(lx - x) <= 2 && Math.abs(ly - y) <= 2) return true;
@@ -369,6 +358,20 @@ function App() {
     link.href = canvasRef.current.toDataURL();
     link.click();
   };
+
+  const biomes = React.useMemo(() => {
+    const sea = settings.landThreshold;
+    return [
+      { name: 'Deep Ocean',    color: '#1e3a8a', minHeight: 0,           maxHeight: sea * 0.4,  minMoisture: -1, maxMoisture: 1 },
+      { name: 'Shallow Water', color: '#3b82f6', minHeight: sea * 0.4,   maxHeight: sea,        minMoisture: -1, maxMoisture: 1 },
+      { name: 'Beach',         color: '#fbbf24', minHeight: sea,         maxHeight: sea + 0.02, minMoisture: -1, maxMoisture: 1 },
+      { name: 'Plains',        color: '#84cc16', minHeight: sea + 0.02,  maxHeight: 0.6,        minMoisture: -1, maxMoisture: 0.3 },
+      { name: 'Forest',        color: '#166534', minHeight: 0.6,         maxHeight: 0.8,        minMoisture: 0.3, maxMoisture: 1 },
+      { name: 'Hills',         color: '#a3a3a3', minHeight: 0.8,         maxHeight: 0.9,        minMoisture: -1, maxMoisture: 1 },
+      { name: 'Mountains',     color: '#6b7280', minHeight: 0.9,         maxHeight: 1,          minMoisture: -1, maxMoisture: 1 },
+      { name: 'Snow Peaks',    color: '#ffffff', minHeight: 1,           maxHeight: 1,          minMoisture: -1, maxMoisture: 1 },
+    ];
+  }, [settings.landThreshold]);
 
   return (
     <div className="App">
