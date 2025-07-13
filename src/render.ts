@@ -75,22 +75,23 @@ export function renderHexMap(
   ctx.translate(offsetX, offsetY);
 
   // 3) 🌟 CRITICAL: Fill landmasses using coastline polygons FIRST
-  if (coastEdges && coastEdges.length > 0) {
-    ctx.fillStyle = LAND_COLOR;
-    ctx.beginPath();
-    for (const loop of coastEdges) {
-      if (loop.length === 0) continue;
-      ctx.moveTo(loop[0].x, loop[0].y);
-      for (let i = 1; i < loop.length; i++) {
-        ctx.lineTo(loop[i].x, loop[i].y);
-      }
-      ctx.closePath();
-    }
-    ctx.fill('evenodd');
-  }
+  // REMOVE the following block entirely:
+  // if (coastEdges && coastEdges.length > 0) {
+  //   ctx.fillStyle = LAND_COLOR;
+  //   ctx.beginPath();
+  //   for (const loop of coastEdges) {
+  //     if (loop.length === 0) continue;
+  //     ctx.moveTo(loop[0].x, loop[0].y);
+  //     for (let i = 1; i < loop.length; i++) {
+  //       ctx.lineTo(loop[i].x, loop[i].y);
+  //     }
+  //     ctx.closePath();
+  //   }
+  //   ctx.fill('evenodd');
+  // }
 
   // 4) Draw biome-colored hexagons on top of land and water
-  hexes.forEach(hex => {
+  hexes.forEach((hex, i) => {
     if (!hex.isLand) {
       // Handle water biomes properly
       const waterBiome = biomes.find(b => 
@@ -101,10 +102,11 @@ export function renderHexMap(
       ctx.fillStyle = waterBiome?.color || OCEAN_COLOR;
     } else {
       // Handle land biomes
+      const moisture = moistureMap[i] !== undefined ? moistureMap[i] : (hex.moisture !== undefined ? hex.moisture : 0.5);
       const biome = biomes.find(b => 
         hex.elevation >= b.minHeight && 
         hex.elevation <= b.maxHeight &&
-        (hex.moisture >= b.minMoisture && hex.moisture <= b.maxMoisture)
+        (moisture >= b.minMoisture && moisture <= b.maxMoisture)
       );
       ctx.fillStyle = biome ? biome.color : LAND_COLOR;
     }

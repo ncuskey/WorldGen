@@ -235,7 +235,7 @@ function App() {
         ctx,
         world.hexes,
         world.riverResult.riverPolylines,
-        [], // moisture map (not used yet)
+        world.hexes.map(h => h.moisture), // Pass actual moisture values
         world.riverResult.flowAccum,
         renderConfig,
         biomes
@@ -263,7 +263,7 @@ function App() {
         ctx,
         hexesToRender,
         [], // no rivers
-        [], // no moisture
+        hexesToRender.map(h => h.moisture), // pass moisture for all steps
         [], // no flowAccum
         renderConfig,
         biomes
