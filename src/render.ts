@@ -89,16 +89,25 @@ export function renderHexMap(
     ctx.fill('evenodd');
   }
 
-  // 4) Draw biome-colored hexagons on top of land
+  // 4) Draw biome-colored hexagons on top of land and water
   hexes.forEach(hex => {
-    if (!hex.isLand) return; // Skip water hexes
-    const biome = biomes.find(b => 
-      hex.elevation >= b.minHeight && 
-      hex.elevation <= b.maxHeight &&
-      hex.moisture >= b.minMoisture &&
-      hex.moisture <= b.maxMoisture
-    );
-    ctx.fillStyle = biome ? biome.color : LAND_COLOR;
+    if (!hex.isLand) {
+      // Handle water biomes properly
+      const waterBiome = biomes.find(b => 
+        hex.elevation >= b.minHeight && 
+        hex.elevation <= b.maxHeight &&
+        (b.name.includes('Ocean') || b.name.includes('Water'))
+      );
+      ctx.fillStyle = waterBiome?.color || OCEAN_COLOR;
+    } else {
+      // Handle land biomes
+      const biome = biomes.find(b => 
+        hex.elevation >= b.minHeight && 
+        hex.elevation <= b.maxHeight &&
+        (hex.moisture >= b.minMoisture && hex.moisture <= b.maxMoisture)
+      );
+      ctx.fillStyle = biome ? biome.color : LAND_COLOR;
+    }
     drawHex(ctx, hex.x, hex.y, hexRadius);
   });
 

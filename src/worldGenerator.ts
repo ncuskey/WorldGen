@@ -94,7 +94,11 @@ export function generateHexMapSteps(seed: number, config: HexMapConfig, debug: b
   }
 
   // Step 2: Land/water classification
-  const landWaterHexes: Hex[] = rawHexes.map(h => ({ ...h, isLand: h.elevation > seaLevel }));
+  const landWaterHexes: Hex[] = rawHexes.map(h => ({ 
+    ...h, 
+    isLand: h.elevation > seaLevel,
+    moisture: h.moisture || 0.5 // Default for water
+  }));
 
   // Step 3: Speck removal
   const speckHexes: Hex[] = landWaterHexes.map(h => ({ ...h }));
