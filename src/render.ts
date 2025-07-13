@@ -87,78 +87,75 @@ export function renderHexMap(
     return;
   }
 
-  if (mode === 'hydrology' && config.coastEdges && config.coastEdges.length) {
-    // Use coastline as a clip path
-    ctx.save();
-    ctx.beginPath();
-    for (const loop of config.coastEdges) {
-      if (loop.length === 0) continue;
-      ctx.moveTo(loop[0].x, loop[0].y);
-      for (let i = 1; i < loop.length; i++) {
-        ctx.lineTo(loop[i].x, loop[i].y);
+  if (mode === 'hydrology') {
+    // 1) draw every hex exactly as in biome mode
+    hexes.forEach((hex, i) => {
+      const moisture = moistureMap[i];
+      const biome = biomes.find(b =>
+        hex.elevation >= b.minHeight &&
+        hex.elevation <= b.maxHeight &&
+        moisture >= b.minMoisture &&
+        moisture <= b.maxMoisture
+      );
+      ctx.fillStyle = biome?.color ?? OCEAN_COLOR;
+      drawHex(ctx, hex.x, hex.y, hexRadius);
+    });
+
+    // 2) stroke your coastEdges on top
+    if (config.coastEdges) {
+      ctx.save();
+      ctx.strokeStyle = '#3d2914';
+      ctx.lineWidth   = 2;
+      ctx.lineJoin    = 'round';
+      ctx.lineCap     = 'round';
+      for (const loop of config.coastEdges) {
+        if (loop.length < 2) continue;
+        ctx.beginPath();
+        ctx.moveTo(loop[0].x, loop[0].y);
+        loop.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+        ctx.stroke();
       }
-      ctx.closePath();
+      ctx.restore();
     }
-    ctx.clip('evenodd');
-    // Draw land biomes inside the clip
-    hexes.forEach((hex, i) => {
-      if (hex.isLand) {
-        const moisture = moistureMap[i] !== undefined ? moistureMap[i] : (hex.moisture !== undefined ? hex.moisture : 0.5);
-        const biome = biomes.find(b =>
-          hex.elevation >= b.minHeight &&
-          hex.elevation <= b.maxHeight &&
-          (moisture >= b.minMoisture && moisture <= b.maxMoisture)
-        );
-        ctx.fillStyle = biome ? biome.color : LAND_COLOR;
-        drawHex(ctx, hex.x, hex.y, hexRadius);
-      }
-    });
-    ctx.restore(); // Remove the clip
-    // Draw water hexes outside the landmass
-    hexes.forEach((hex, i) => {
-      if (!hex.isLand) {
-        const waterBiome = biomes.find(b =>
-          hex.elevation >= b.minHeight &&
-          hex.elevation <= b.maxHeight &&
-          (b.name.includes('Ocean') || b.name.includes('Water'))
-        );
-        ctx.fillStyle = waterBiome?.color || OCEAN_COLOR;
-        drawHex(ctx, hex.x, hex.y, hexRadius);
-      }
-    });
-  } else {
-    // For biome mode (steps 3/4), just draw all land and water hexes (no mask)
-    hexes.forEach((hex, i) => {
-      if (hex.isLand) {
-        const moisture = moistureMap[i] !== undefined ? moistureMap[i] : (hex.moisture !== undefined ? hex.moisture : 0.5);
-        const biome = biomes.find(b =>
-          hex.elevation >= b.minHeight &&
-          hex.elevation <= b.maxHeight &&
-          (moisture >= b.minMoisture && moisture <= b.maxMoisture)
-        );
-        ctx.fillStyle = biome ? biome.color : LAND_COLOR;
-        drawHex(ctx, hex.x, hex.y, hexRadius);
-      }
-    });
-    hexes.forEach((hex, i) => {
-      if (!hex.isLand) {
-        const waterBiome = biomes.find(b =>
-          hex.elevation >= b.minHeight &&
-          hex.elevation <= b.maxHeight &&
-          (b.name.includes('Ocean') || b.name.includes('Water'))
-        );
-        ctx.fillStyle = waterBiome?.color || OCEAN_COLOR;
-        drawHex(ctx, hex.x, hex.y, hexRadius);
-      }
-    });
+
+    // 3) finally draw rivers
+    if (showRivers) {
+      drawRivers(ctx, riverPolylines, debugMode);
+    }
+
+    // we’re done
+    ctx.restore();
+    return;
   }
 
+  // Draw all land and water hexes (no mask)
+  hexes.forEach((hex, i) => {
+    if (hex.isLand) {
+      const moisture = moistureMap[i] !== undefined ? moistureMap[i] : (hex.moisture !== undefined ? hex.moisture : 0.5);
+      const biome = biomes.find(b =>
+        hex.elevation >= b.minHeight &&
+        hex.elevation <= b.maxHeight &&
+        (moisture >= b.minMoisture && moisture <= b.maxMoisture)
+      );
+      ctx.fillStyle = biome ? biome.color : LAND_COLOR;
+      drawHex(ctx, hex.x, hex.y, hexRadius);
+    }
+  });
+  hexes.forEach((hex, i) => {
+    if (!hex.isLand) {
+      const waterBiome = biomes.find(b =>
+        hex.elevation >= b.minHeight &&
+        hex.elevation <= b.maxHeight &&
+        (b.name.includes('Ocean') || b.name.includes('Water'))
+      );
+      ctx.fillStyle = waterBiome?.color || OCEAN_COLOR;
+      drawHex(ctx, hex.x, hex.y, hexRadius);
+    }
+  });
   ctx.restore();
 
   // Draw rivers last, only in hydrology mode
-  if (mode === 'hydrology' && showRivers) {
-    drawRivers(ctx, riverPolylines, debugMode);
-  }
 }
 
 // helper: signed area via shoelace formula
