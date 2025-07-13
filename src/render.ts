@@ -53,9 +53,9 @@ export function renderHexMap(
   config: RenderConfig,
   biomes: Biome[] = defaultBiomes
 ) {
-  const { width, height, showRivers, showFlowAccumulation, debugMode, coastEdges, showHexOutlines, showElevationHeatmap, showLandWaterDebug, hexRadius, showCoastlines } = config;
+  const { width, height, showRivers, debugMode, coastEdges, showHexOutlines, showElevationHeatmap, hexRadius } = config;
 
-  // Infer cols/rows from hexes if not present in config
+  // Calculate map dimensions
   let cols = 0, rows = 0;
   if (hexes.length > 0) {
     cols = Math.max(...hexes.map(h => h.q)) + 1;
@@ -66,42 +66,54 @@ export function renderHexMap(
   const offsetX = (width - mapW) / 2;
   const offsetY = (height - mapH) / 2;
 
-  // 1) Paint the full-canvas ocean un-translated
+  // 1) Paint ocean background
   ctx.fillStyle = OCEAN_COLOR;
   ctx.fillRect(0, 0, width, height);
 
-  // 2) Now shift origin so the hex-grid is centered
+  // 2) Shift origin to center the map
   ctx.save();
   ctx.translate(offsetX, offsetY);
 
-  // Debug mode: Show elevation heatmap
-  if (debugMode && showElevationHeatmap) {
-    drawElevationHeatmap(ctx, hexes, config);
+  // 3) 🌟 CRITICAL: Fill landmasses using coastline polygons FIRST
+  if (coastEdges && coastEdges.length > 0) {
+    ctx.fillStyle = LAND_COLOR;
+    ctx.beginPath();
+    for (const loop of coastEdges) {
+      if (loop.length === 0) continue;
+      ctx.moveTo(loop[0].x, loop[0].y);
+      for (let i = 1; i < loop.length; i++) {
+        ctx.lineTo(loop[i].x, loop[i].y);
+      }
+      ctx.closePath();
+    }
+    ctx.fill('evenodd');
   }
 
-  // Debug mode: Show land/water classification
-  if (debugMode && showLandWaterDebug) {
-    drawLandWaterDebug(ctx, hexes, config);
+  // 4) Draw biome-colored hexagons on top of land
+  hexes.forEach(hex => {
+    if (!hex.isLand) return; // Skip water hexes
+    
+    const biome = biomes.find(b => 
+      hex.elevation >= b.minHeight && hex.elevation <= b.maxHeight
+    );
+    
+    ctx.fillStyle = biome ? biome.color : LAND_COLOR;
+    drawHex(ctx, hex.x, hex.y, hexRadius);
+  });
+
+  // 5) Debug overlays (only if enabled)
+  if (debugMode) {
+    if (showElevationHeatmap) {
+      drawElevationHeatmap(ctx, hexes, config);
+    }
+    if (showHexOutlines) {
+      drawHexOutlines(ctx, hexes, config);
+    }
   }
 
-  // Always fill the land with holes for lakes/islands
-  if (showCoastlines && coastEdges && coastEdges.length > 0) {
-    fillCoastlinesWithHoles(ctx, coastEdges, LAND_COLOR);
-  }
-
-  // Debug mode: Show hex outlines
-  if (debugMode && showHexOutlines) {
-    drawHexOutlines(ctx, hexes, config);
-  }
-
-  // Draw rivers if enabled
+  // 6) Draw rivers on top
   if (showRivers) {
     drawRivers(ctx, riverPolylines, debugMode);
-  }
-
-  // Draw flow accumulation debug overlay
-  if (showFlowAccumulation && debugMode) {
-    drawFlowAccumulation(ctx, hexes, flowAccum, config);
   }
 
   ctx.restore();
