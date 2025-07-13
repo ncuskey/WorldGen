@@ -157,10 +157,22 @@ export function generateRivers(
     let idx: number | null = src;
     const path: { x: number, y: number }[] = [];
     let isMain = flowAccum[src] >= mainRiverAccum;
-    while (idx !== null && hexes[idx].isLand) {
-      path.push({ x: hexes[idx].x, y: hexes[idx].y });
+    while (idx !== null) {
+      const hex = hexes[idx];
+      path.push({ x: hex.x, y: hex.y });
+      // Check if we've reached water
+      if (!hex.isLand) {
+        // Extend slightly into ocean for visual effect
+        const lastLand = path[path.length - 2];
+        const oceanExtend = {
+          x: hex.x + (hex.x - lastLand.x) * 0.3,
+          y: hex.y + (hex.y - lastLand.y) * 0.3
+        };
+        path.push(oceanExtend);
+        break;
+      }
       const nextIdx: number | null = flowDirs[idx];
-      if (nextIdx !== null && path.length > cols + rows) break; // prevent infinite loops
+      if (nextIdx !== null && path.length > cols + rows) break;
       idx = nextIdx;
     }
     if (path.length > 4) {
@@ -176,8 +188,20 @@ export function generateRivers(
   for (const src of secondarySources) {
     let idx: number | null = src;
     const path: { x: number, y: number }[] = [];
-    while (idx !== null && hexes[idx].isLand) {
-      path.push({ x: hexes[idx].x, y: hexes[idx].y });
+    while (idx !== null) {
+      const hex = hexes[idx];
+      path.push({ x: hex.x, y: hex.y });
+      // Check if we've reached water
+      if (!hex.isLand) {
+        // Extend slightly into ocean for visual effect
+        const lastLand = path[path.length - 2];
+        const oceanExtend = {
+          x: hex.x + (hex.x - lastLand.x) * 0.3,
+          y: hex.y + (hex.y - lastLand.y) * 0.3
+        };
+        path.push(oceanExtend);
+        break;
+      }
       const nextIdx: number | null = flowDirs[idx];
       if (nextIdx !== null && path.length > cols + rows) break;
       idx = nextIdx;
@@ -195,8 +219,20 @@ export function generateRivers(
   for (const src of tertiarySources) {
     let idx: number | null = src;
     const path: { x: number, y: number }[] = [];
-    while (idx !== null && hexes[idx].isLand) {
-      path.push({ x: hexes[idx].x, y: hexes[idx].y });
+    while (idx !== null) {
+      const hex = hexes[idx];
+      path.push({ x: hex.x, y: hex.y });
+      // Check if we've reached water
+      if (!hex.isLand) {
+        // Extend slightly into ocean for visual effect
+        const lastLand = path[path.length - 2];
+        const oceanExtend = {
+          x: hex.x + (hex.x - lastLand.x) * 0.3,
+          y: hex.y + (hex.y - lastLand.y) * 0.3
+        };
+        path.push(oceanExtend);
+        break;
+      }
       const nextIdx: number | null = flowDirs[idx];
       if (nextIdx !== null && path.length > cols + rows) break;
       idx = nextIdx;

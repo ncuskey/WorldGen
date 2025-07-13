@@ -34,13 +34,13 @@ const FOREST_COLOR = '#7ca07c';
 const RIVER_COLOR = '#4a90e2';
 
 const defaultBiomes: Biome[] = [
-  { name: 'Deep Ocean', color: OCEAN_COLOR, minHeight: -1, maxHeight: -0.3, minMoisture: -1, maxMoisture: 1 },
-  { name: 'Shallow Water', color: OCEAN_COLOR, minHeight: -0.3, maxHeight: -0.1, minMoisture: -1, maxMoisture: 1 },
-  { name: 'Beach', color: LAND_COLOR, minHeight: -0.1, maxHeight: 0, minMoisture: -1, maxMoisture: 1 },
-  { name: 'Plains', color: LAND_COLOR, minHeight: 0, maxHeight: 0.3, minMoisture: -1, maxMoisture: 0.3 },
-  { name: 'Forest', color: FOREST_COLOR, minHeight: 0, maxHeight: 0.5, minMoisture: 0.3, maxMoisture: 1 },
-  { name: 'Hills', color: HIGHLAND_COLOR, minHeight: 0.3, maxHeight: 0.6, minMoisture: -1, maxMoisture: 1 },
-  { name: 'Mountains', color: MOUNTAIN_COLOR, minHeight: 0.6, maxHeight: 1, minMoisture: -1, maxMoisture: 1 },
+  { name: 'Deep Ocean', color: '#1e3a8a', minHeight: -1, maxHeight: -0.3, minMoisture: -1, maxMoisture: 1 },
+  { name: 'Shallow Water', color: '#3b82f6', minHeight: -0.3, maxHeight: -0.1, minMoisture: -1, maxMoisture: 1 },
+  { name: 'Beach', color: '#fbbf24', minHeight: -0.1, maxHeight: 0, minMoisture: -1, maxMoisture: 1 },
+  { name: 'Plains', color: '#84cc16', minHeight: 0, maxHeight: 0.3, minMoisture: -1, maxMoisture: 0.3 },
+  { name: 'Forest', color: '#166534', minHeight: 0, maxHeight: 0.5, minMoisture: 0.3, maxMoisture: 1 },
+  { name: 'Hills', color: '#a3a3a3', minHeight: 0.3, maxHeight: 0.6, minMoisture: -1, maxMoisture: 1 },
+  { name: 'Mountains', color: '#6b7280', minHeight: 0.6, maxHeight: 1, minMoisture: -1, maxMoisture: 1 },
   { name: 'Snow Peaks', color: '#ffffff', minHeight: 0.8, maxHeight: 1, minMoisture: -1, maxMoisture: 1 },
 ];
 
@@ -92,11 +92,12 @@ export function renderHexMap(
   // 4) Draw biome-colored hexagons on top of land
   hexes.forEach(hex => {
     if (!hex.isLand) return; // Skip water hexes
-    
     const biome = biomes.find(b => 
-      hex.elevation >= b.minHeight && hex.elevation <= b.maxHeight
+      hex.elevation >= b.minHeight && 
+      hex.elevation <= b.maxHeight &&
+      hex.moisture >= b.minMoisture &&
+      hex.moisture <= b.maxMoisture
     );
-    
     ctx.fillStyle = biome ? biome.color : LAND_COLOR;
     drawHex(ctx, hex.x, hex.y, hexRadius);
   });

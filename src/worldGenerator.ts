@@ -11,6 +11,7 @@ export interface Hex {
   elevation: number;
   isLand: boolean;
   region?: number; // optional region ID for region borders
+  moisture: number; // new
 }
 
 export interface HexMapConfig {
@@ -49,6 +50,11 @@ export function generateHexMapSteps(seed: number, config: HexMapConfig, debug: b
     seed = Math.sin(seed) * 10000;
     return seed - Math.floor(seed);
   });
+  // Add moisture noise generator
+  const moistureNoise = createNoise2D(() => {
+    seed = Math.sin(seed + 1000) * 10000;
+    return seed - Math.floor(seed);
+  });
 
   // Calculate map center for gradient
   const mapWidth = cols * radius * Math.sqrt(3);
@@ -81,7 +87,9 @@ export function generateHexMapSteps(seed: number, config: HexMapConfig, debug: b
       // Blend using user weights _and normalize_ so elevation stays in [0…1]
       const weightedSum = noiseHeight * noiseWeight + gradient * shapeWeight;
       const elevation = weightedSum / (noiseWeight + shapeWeight);
-      rawHexes.push({ q, r, x, y, elevation, isLand: false });
+      // Calculate moisture
+      const moisture = moistureNoise(x * 0.01, y * 0.01) * 0.5 + 0.5;
+      rawHexes.push({ q, r, x, y, elevation, isLand: false, moisture });
     }
   }
 
@@ -198,6 +206,11 @@ export function generateHexMap(seed: number, config: HexMapConfig, debug: boolea
     seed = Math.sin(seed) * 10000;
     return seed - Math.floor(seed);
   });
+  // Add moisture noise generator
+  const moistureNoise = createNoise2D(() => {
+    seed = Math.sin(seed + 1000) * 10000;
+    return seed - Math.floor(seed);
+  });
 
   if (debug) {
     console.log('=== STEP 1: HEX GRID & HEIGHTMAP GENERATION ===');
@@ -258,6 +271,9 @@ export function generateHexMap(seed: number, config: HexMapConfig, debug: boolea
       const sum = noiseHeight * noiseWeight + gradient * shapeWeight;
       const elevation = sum / (noiseWeight + shapeWeight);
 
+      // Calculate moisture
+      const moisture = moistureNoise(x * 0.01, y * 0.01) * 0.5 + 0.5;
+
       // Track elevation statistics
       minElev = Math.min(minElev, elevation);
       maxElev = Math.max(maxElev, elevation);
@@ -267,7 +283,7 @@ export function generateHexMap(seed: number, config: HexMapConfig, debug: boolea
       else if (Math.abs(elevation - seaLevel) < 0.001) atSeaLevel++;
       else aboveSeaLevel++;
 
-      hexes.push({ q, r, x, y, elevation, isLand: elevation > seaLevel });
+      hexes.push({ q, r, x, y, elevation, isLand: elevation > seaLevel, moisture });
     }
   }
 
