@@ -238,37 +238,42 @@ function App() {
         world.hexes.map(h => h.moisture), // Pass actual moisture values
         world.riverResult.flowAccum,
         renderConfig,
-        biomes
+        biomes,
+        'hydrology'
       );
+      setIsGenerating(false);
+      return;
     }
 
     // Render according to step
-    const isCoastStep = renderMode === 'coast';
-    const isHydrologyStep = renderMode === 'hydrology';
-    if (!isHydrologyStep) {
-      const renderConfig: RenderConfig = {
-        width: ctx.canvas.width,
-        height: ctx.canvas.height,
-        hexRadius: settings.hexRadius,
-        showRivers: false,
-        showFlowAccumulation: false,
-        showCoastlines: isCoastStep,
-        debugMode: true,
-        coastEdges: coastEdges,
-        showLandWaterDebug: renderMode === 'landwater' || renderMode === 'speck' || renderMode === 'coast',
-        showHexOutlines: false,
-        showElevationHeatmap: renderMode === 'elevation',
-      };
-      renderHexMap(
-        ctx,
-        hexesToRender,
-        [], // no rivers
-        hexesToRender.map(h => h.moisture), // pass moisture for all steps
-        [], // no flowAccum
-        renderConfig,
-        biomes
-      );
-    }
+    let mode: 'elevation' | 'landwater' | 'biome' | 'hydrology' = 'biome';
+    if (step === 0) mode = 'elevation';
+    else if (step === 1) mode = 'landwater';
+    else if (step === 2 || step === 3) mode = 'biome';
+
+    const renderConfig: RenderConfig = {
+      width: ctx.canvas.width,
+      height: ctx.canvas.height,
+      hexRadius: settings.hexRadius,
+      showRivers: false,
+      showFlowAccumulation: false,
+      showCoastlines: step === 3,
+      debugMode: true,
+      coastEdges: coastEdges,
+      showLandWaterDebug: renderMode === 'landwater' || renderMode === 'speck' || renderMode === 'coast',
+      showHexOutlines: false,
+      showElevationHeatmap: renderMode === 'elevation',
+    };
+    renderHexMap(
+      ctx,
+      hexesToRender,
+      [], // no rivers
+      hexesToRender.map(h => h.moisture), // pass moisture for all steps
+      [], // no flowAccum
+      renderConfig,
+      biomes,
+      mode
+    );
     setIsGenerating(false);
   }, [settings, step]);
 
