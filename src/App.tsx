@@ -220,15 +220,22 @@ function App() {
         debugMode: false,
       });
 
-      // 1) build the single-loop SVG path you already compute in step 3
+      // 1) compute the map’s pixel-bounds & center-offset
+      const mapW  = settings.hexCols * settings.hexRadius * Math.sqrt(3);
+      const mapH  = settings.hexRows * settings.hexRadius * 1.5;
+      const offsetX = (settings.width  - mapW) / 2;
+      const offsetY = (settings.height - mapH) / 2;
+
+      // 2) build & apply the island shape clip
       const svgPath = hexesToCoastline(world.hexes, settings.landThreshold);
       if (svgPath) {
         ctx.save();
-        const clip = new Path2D(svgPath);
-        ctx.clip(clip);           // everything you draw now is *inside* the big island shape
+        ctx.translate(offsetX, offsetY);
+        const islandPath = new Path2D(svgPath);
+        ctx.clip(islandPath);
       }
 
-      // 2) draw land biomes inside the mask
+      // 3) draw only *land* biomes inside that clip
       world.hexes.forEach((hex, i) => {
         if (hex.isLand) {
           const moisture = hex.moisture;
@@ -243,11 +250,11 @@ function App() {
         }
       });
 
-      // 3) restore—remove the mask so we can paint the oceans
+      // 4) restore so we can paint water *outside* the island
       if (svgPath) ctx.restore();
 
-      // 4) paint water everywhere else
-      world.hexes.forEach((hex, i) => {
+      // 5) paint your ocean hexes
+      world.hexes.forEach(hex => {
         if (!hex.isLand) {
           const waterBiome = biomes.find(b =>
             hex.elevation >= b.minHeight &&
@@ -259,8 +266,83 @@ function App() {
         }
       });
 
-      // 5) rivers on top
+      // 6) draw rivers on top
       drawRivers(ctx, world.riverResult.riverPolylines, false);
+
+      setIsGenerating(false);
+      return;
+    }
+
+    // Step 5: Hydrology with coastline border
+    if (step === 5) {
+      const world = generateWorld({
+        seed: settings.seed,
+        hexRadius: settings.hexRadius,
+        cols: settings.hexCols,
+        rows: settings.hexRows,
+        octaves: settings.octaves,
+        persistence: settings.persistence,
+        lacunarity: settings.lacunarity,
+        noiseScale: settings.scale,
+        noiseWeight: settings.localDetailWeight,
+        shapeWeight: settings.globalShapeWeight,
+        gradientExponent: settings.gradientExponent,
+        seaLevel: settings.landThreshold,
+        minSourceElev: settings.minSourceElev,
+        mainRiverAccum: settings.mainRiverAccum,
+        tributaryAccum: settings.tributaryAccum,
+        secondaryStreamAccum: settings.secondaryStreamAccum,
+        tertiaryStreamAccum: settings.tertiaryStreamAccum,
+        riverWidth: settings.riverWidth,
+        riverSmooth: settings.riverSmooth,
+        erosionPasses: 1,
+        dilationPasses: 1,
+        coastNoiseSeed: 12345,
+        showRivers: true,
+        showFlowAccumulation: false,
+        showCoastlines: false, // not used here
+        debugMode: false,
+      });
+
+      // draw land and water biomes as usual
+      world.hexes.forEach((hex, i) => {
+        if (hex.isLand) {
+          const moisture = hex.moisture;
+          const biome = biomes.find(b =>
+            hex.elevation >= b.minHeight &&
+            hex.elevation <= b.maxHeight &&
+            moisture >= b.minMoisture &&
+            moisture <= b.maxMoisture
+          );
+          ctx.fillStyle = biome?.color ?? '#e9e4c7';
+          drawHex(ctx, hex.x, hex.y, settings.hexRadius);
+        } else {
+          const waterBiome = biomes.find(b =>
+            hex.elevation >= b.minHeight &&
+            hex.elevation <= b.maxHeight &&
+            (b.name.includes('Ocean') || b.name.includes('Water'))
+          );
+          ctx.fillStyle = waterBiome?.color ?? '#3b82f6';
+          drawHex(ctx, hex.x, hex.y, settings.hexRadius);
+        }
+      });
+
+      // draw rivers on top
+      drawRivers(ctx, world.riverResult.riverPolylines, false);
+
+      // draw only the one outer border (no tiny loops)
+      const svgPath = hexesToCoastline(world.hexes, settings.landThreshold);
+      const mapW  = settings.hexCols * settings.hexRadius * Math.sqrt(3);
+      const mapH  = settings.hexRows * settings.hexRadius * 1.5;
+      const offsetX = (settings.width  - mapW) / 2;
+      const offsetY = (settings.height - mapH) / 2;
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      const border = new Path2D(svgPath);
+      ctx.strokeStyle = '#3d2914';
+      ctx.lineWidth   = 2;
+      ctx.stroke(border);
+      ctx.restore();
 
       setIsGenerating(false);
       return;
