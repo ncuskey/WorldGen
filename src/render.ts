@@ -355,4 +355,4 @@ function drawFlowAccumulation(ctx: CanvasRenderingContext2D, hexes: Hex[], flowA
   }
 } 
 
-export { fillCoastlinesWithHoles }; 
+export { fillCoastlinesWithHoles, drawHex, drawRivers }; 

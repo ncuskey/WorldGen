@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import { createNoise2D } from 'simplex-noise';
 import { generateWorld } from './mainGenerator';
-import { renderHexMap, RenderConfig } from './render';
+import { renderHexMap, RenderConfig, drawHex, drawRivers } from './render';
 import { generateHexMapSteps } from './worldGenerator';
 import { collectBorderSegments } from './coastline';
 import { hexesToCoastline } from './utils/coastlineSmoother';
@@ -82,6 +82,11 @@ function pickOuterLoop(loops: {x:number,y:number}[][]) {
   return loops.reduce((a,b) =>
     Math.abs(polygonArea(a)) > Math.abs(polygonArea(b)) ? a : b
   );
+}
+
+// Helper: build a Path2D out of our SVG path string
+function buildClipPath(pathD: string): Path2D {
+  return new Path2D(pathD);
 }
 
 function App() {
@@ -185,8 +190,7 @@ function App() {
         : '';
       setSvgCoastline(svgPath);
     } else if (step === 4) {
-      // Step 4: Hydrology (Rivers & Lakes)
-      renderMode = 'hydrology';
+      // Step 5: Hydrology (Rivers & Lakes)
       const world = generateWorld({
         seed: settings.seed,
         hexRadius: settings.hexRadius,
@@ -216,33 +220,67 @@ function App() {
         debugMode: false,
       });
 
-      // NEW: only keep the biggest coastline loop
-      const outer = pickOuterLoop(world.coastEdges);
+      // build the single-contour SVG path (exactly the one you showed in step 3)
+      const svgPath = hexesToCoastline(world.hexes, settings.landThreshold);
 
+      // create our render config (no coastEdges, no showCoastlines)
       const renderConfig: RenderConfig = {
         width: ctx.canvas.width,
         height: ctx.canvas.height,
         hexRadius: settings.hexRadius,
-        showRivers: true,
+        showRivers: false,
         showFlowAccumulation: false,
-        showCoastlines: true,
+        showCoastlines: false,    // we’re doing the clipping ourselves
         debugMode: false,
-        coastEdges: outer.length ? [outer] : [],    // << this is the key change
+        coastEdges: [],
         showHexOutlines: settings.showHexOutlines,
         showElevationHeatmap: settings.showElevationHeatmap,
         showLandWaterDebug: settings.showLandWaterDebug,
       };
 
-      renderHexMap(
-        ctx,
-        world.hexes,
-        world.riverResult.riverPolylines,
-        world.hexes.map(h => h.moisture),
-        world.riverResult.flowAccum,
-        renderConfig,
-        biomes,
-        'hydrology'
-      );
+      // apply clip
+      if (svgPath) {
+        ctx.save();
+        const clip = buildClipPath(svgPath);
+        ctx.clip(clip);           // default nonzero rule, so the single path is “inside”
+      }
+
+      // draw land inside the mask
+      world.hexes.forEach((hex, i) => {
+        if (hex.isLand) {
+          const moisture = hex.moisture;
+          const biome = biomes.find(b =>
+            hex.elevation >= b.minHeight &&
+            hex.elevation <= b.maxHeight &&
+            moisture >= b.minMoisture &&
+            moisture <= b.maxMoisture
+          );
+          ctx.fillStyle = biome?.color ?? '#e9e4c7';
+          drawHex(ctx, hex.x, hex.y, settings.hexRadius);
+        }
+      });
+
+      // restore out of the mask
+      if (svgPath) {
+        ctx.restore();
+      }
+
+      // draw water everywhere else
+      world.hexes.forEach((hex, i) => {
+        if (!hex.isLand) {
+          const waterBiome = biomes.find(b =>
+            hex.elevation >= b.minHeight &&
+            hex.elevation <= b.maxHeight &&
+            (b.name.includes('Ocean') || b.name.includes('Water'))
+          );
+          ctx.fillStyle = waterBiome?.color ?? '#a3b9d7';
+          drawHex(ctx, hex.x, hex.y, settings.hexRadius);
+        }
+      });
+
+      // finally rivers
+      drawRivers(ctx, world.riverResult.riverPolylines, false);
+
       setIsGenerating(false);
       return;
     }
