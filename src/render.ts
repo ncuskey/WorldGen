@@ -98,7 +98,7 @@ export function renderHexMap(
         moisture <= b.maxMoisture
       );
       ctx.fillStyle = biome?.color ?? OCEAN_COLOR;
-      fillHex(ctx, hex.x, hex.y, hexRadius);
+      drawHex(ctx, hex.x, hex.y, hexRadius);
     });
 
     // 2) stroke your coastEdges on top
@@ -163,7 +163,7 @@ export function renderHexMap(
           moisture <= b.maxMoisture
         );
         ctx.fillStyle = biome?.color ?? LAND_COLOR;
-        fillHex(ctx, hex.x, hex.y, hexRadius);
+        drawHex(ctx, hex.x, hex.y, hexRadius);
       }
     });
     ctx.restore();
@@ -180,7 +180,7 @@ export function renderHexMap(
         (moisture >= b.minMoisture && moisture <= b.maxMoisture)
       );
       ctx.fillStyle = biome ? biome.color : LAND_COLOR;
-      fillHex(ctx, hex.x, hex.y, hexRadius);
+      drawHex(ctx, hex.x, hex.y, hexRadius);
     }
   });
   hexes.forEach((hex, i) => {
@@ -191,7 +191,7 @@ export function renderHexMap(
         (b.name.includes('Ocean') || b.name.includes('Water'))
       );
       ctx.fillStyle = waterBiome?.color || OCEAN_COLOR;
-      fillHex(ctx, hex.x, hex.y, hexRadius);
+      drawHex(ctx, hex.x, hex.y, hexRadius);
     }
   });
   ctx.restore();
@@ -230,13 +230,13 @@ function fillCoastlinesWithHoles(
   ctx.restore();
 }
 
-/** Fill a regular, pointy-top hexagon */
-function fillHex(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+/** helper: draw a filled pointy-top hex at (x,y) */
+function drawHex(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
     const angle = (Math.PI / 3) * i;
-    const px = x + r * Math.cos(angle);
-    const py = y + r * Math.sin(angle);
+    const px = x + radius * Math.cos(angle);
+    const py = y + radius * Math.sin(angle);
     if (i === 0) ctx.moveTo(px, py);
     else        ctx.lineTo(px, py);
   }
@@ -277,7 +277,7 @@ function drawElevationHeatmap(
     }
     
     ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-    fillHex(ctx, hex.x, hex.y, hexRadius);
+    drawHex(ctx, hex.x, hex.y, hexRadius);
   });
 }
 
@@ -294,7 +294,7 @@ function drawLandWaterDebug(
     } else {
       ctx.fillStyle = '#87CEEB'; // Light blue for water
     }
-    fillHex(ctx, hex.x, hex.y, hexRadius);
+    drawHex(ctx, hex.x, hex.y, hexRadius);
   });
 }
 
@@ -311,22 +311,6 @@ function drawHexOutlines(
   hexes.forEach(hex => {
     drawHexOutline(ctx, hex.x, hex.y, hexRadius);
   });
-}
-
-function drawHex(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {
-  ctx.beginPath();
-  for (let i = 0; i < 6; i++) {
-    const angle = (i * Math.PI) / 3;
-    const px = x + radius * Math.cos(angle);
-    const py = y + radius * Math.sin(angle);
-    if (i === 0) {
-      ctx.moveTo(px, py);
-    } else {
-      ctx.lineTo(px, py);
-    }
-  }
-  ctx.closePath();
-  ctx.fill();
 }
 
 function drawHexOutline(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {
@@ -405,7 +389,7 @@ function drawFlowAccumulation(ctx: CanvasRenderingContext2D, hexes: Hex[], flowA
     
     if (normalizedFlow > 0.1) { // Only show significant flow
       ctx.fillStyle = `rgba(0, 255, 255, ${Math.min(0.8, normalizedFlow * 0.5)})`;
-      ctx.fillRect(hex.x - 2, hex.y - 2, 4, 4);
+      drawHex(ctx, hex.x, hex.y, config.hexRadius);
     }
   }
 } 
