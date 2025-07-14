@@ -76,6 +76,14 @@ function polygonArea(pts: {x:number,y:number}[]) {
   }, 0) * 0.5;
 }
 
+// picks the single largest loop by absolute shoelace area
+function pickOuterLoop(loops: {x:number,y:number}[][]) {
+  if (!loops.length) return [];
+  return loops.reduce((a,b) =>
+    Math.abs(polygonArea(a)) > Math.abs(polygonArea(b)) ? a : b
+  );
+}
+
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [settings, setSettings] = useState<MapSettings>({
@@ -208,6 +216,9 @@ function App() {
         debugMode: false,
       });
 
+      // NEW: only keep the biggest coastline loop
+      const outer = pickOuterLoop(world.coastEdges);
+
       const renderConfig: RenderConfig = {
         width: ctx.canvas.width,
         height: ctx.canvas.height,
@@ -216,7 +227,7 @@ function App() {
         showFlowAccumulation: false,
         showCoastlines: true,
         debugMode: false,
-        coastEdges: world.coastEdges,
+        coastEdges: outer.length ? [outer] : [],    // << this is the key change
         showHexOutlines: settings.showHexOutlines,
         showElevationHeatmap: settings.showElevationHeatmap,
         showLandWaterDebug: settings.showLandWaterDebug,
@@ -226,7 +237,7 @@ function App() {
         ctx,
         world.hexes,
         world.riverResult.riverPolylines,
-        world.hexes.map(h => h.moisture), // Pass actual moisture values
+        world.hexes.map(h => h.moisture),
         world.riverResult.flowAccum,
         renderConfig,
         biomes,
