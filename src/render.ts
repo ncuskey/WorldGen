@@ -52,7 +52,7 @@ export function renderHexMap(
   flowAccum: number[],
   config: RenderConfig,
   biomes: Biome[] = defaultBiomes,
-  mode: 'elevation' | 'landwater' | 'biome' | 'hydrology' = 'biome'
+  mode: 'elevation' | 'landwater' | 'biome' | 'hydrology' | 'coast' = 'biome'
 ) {
   const { width, height, showRivers, debugMode, coastEdges, showHexOutlines, showElevationHeatmap, showLandWaterDebug, hexRadius } = config;
 
@@ -125,6 +125,47 @@ export function renderHexMap(
     }
 
     // we’re done
+    ctx.restore();
+    return;
+  }
+
+  if (mode === 'coast' && config.coastEdges && config.coastEdges.length) {
+    ctx.save();
+    // center the hex grid in the same way as App.tsx
+    let cols = 0, rows = 0;
+    if (hexes.length > 0) {
+      cols = Math.max(...hexes.map(h => h.q)) + 1;
+      rows = Math.max(...hexes.map(h => h.r)) + 1;
+    }
+    const mapW = cols * hexRadius * Math.sqrt(3);
+    const mapH = rows * hexRadius * 1.5;
+    const offsetX = (width - mapW) / 2;
+    const offsetY = (height - mapH) / 2;
+    ctx.translate(offsetX, offsetY);
+    ctx.beginPath();
+    for (const loop of config.coastEdges) {
+      if (!loop.length) continue;
+      ctx.moveTo(loop[0].x, loop[0].y);
+      for (let i = 1; i < loop.length; i++) {
+        ctx.lineTo(loop[i].x, loop[i].y);
+      }
+      ctx.closePath();
+    }
+    ctx.clip('evenodd');
+    // draw only land hexes
+    hexes.forEach((hex, i) => {
+      if (hex.isLand) {
+        const moisture = moistureMap[i] ?? hex.moisture;
+        const biome = biomes.find(b =>
+          hex.elevation >= b.minHeight &&
+          hex.elevation <= b.maxHeight &&
+          moisture >= b.minMoisture &&
+          moisture <= b.maxMoisture
+        );
+        ctx.fillStyle = biome?.color ?? LAND_COLOR;
+        drawHex(ctx, hex.x, hex.y, hexRadius);
+      }
+    });
     ctx.restore();
     return;
   }

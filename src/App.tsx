@@ -349,10 +349,12 @@ function App() {
     }
 
     // Render according to step
-    let mode: 'elevation' | 'landwater' | 'biome' | 'hydrology' = 'biome';
-    if (step === 0) mode = 'elevation';
-    else if (step === 1) mode = 'landwater';
-    else if (step === 2 || step === 3) mode = 'biome';
+    let mode: 'elevation' | 'landwater' | 'biome' | 'coast' | 'hydrology' = 'biome';
+    if (step === 0)       mode = 'elevation';
+    else if (step === 1)  mode = 'landwater';
+    else if (step === 2)  mode = 'biome';
+    else if (step === 3)  mode = 'coast';
+    else if (step === 4)  mode = 'hydrology';
 
     const renderConfig: RenderConfig = {
       width: ctx.canvas.width,
@@ -360,12 +362,12 @@ function App() {
       hexRadius: settings.hexRadius,
       showRivers: false,
       showFlowAccumulation: false,
-      showCoastlines: step === 3,
-      debugMode: true,
+      showCoastlines: false,
+      debugMode: false,
       coastEdges: coastEdges,
-      showLandWaterDebug: renderMode === 'landwater' || renderMode === 'speck' || renderMode === 'coast',
+      showLandWaterDebug: false,
       showHexOutlines: false,
-      showElevationHeatmap: renderMode === 'elevation',
+      showElevationHeatmap: false,
     };
     renderHexMap(
       ctx,
