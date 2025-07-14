@@ -169,10 +169,12 @@ function App() {
     } else if (step === 3) {
       hexesToRender = steps.refinedHexes;
       renderMode = 'coast';
-      coastEdges = steps.coastEdges || [];
       mainCoastLoop = steps.mainCoastLoop || [];
-      // Generate SVG coastline path using alpha shape
-      const svgPath = hexesToCoastline(hexesToRender, settings.landThreshold);
+      // For Step 4, use only the mainCoastLoop for masking and overlay
+      coastEdges = mainCoastLoop.length ? [mainCoastLoop] : [];
+      const svgPath = mainCoastLoop.length
+        ? 'M' + mainCoastLoop.map(p => `${p.x},${p.y}`).join('L') + 'Z'
+        : '';
       setSvgCoastline(svgPath);
     } else if (step === 4) {
       // Step 4: Hydrology (Rivers & Lakes)
