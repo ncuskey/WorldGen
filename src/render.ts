@@ -98,7 +98,7 @@ export function renderHexMap(
         moisture <= b.maxMoisture
       );
       ctx.fillStyle = biome?.color ?? OCEAN_COLOR;
-      drawHex(ctx, hex.x, hex.y, hexRadius);
+      fillHex(ctx, hex.x, hex.y, hexRadius);
     });
 
     // 2) stroke your coastEdges on top
@@ -163,7 +163,7 @@ export function renderHexMap(
           moisture <= b.maxMoisture
         );
         ctx.fillStyle = biome?.color ?? LAND_COLOR;
-        drawHex(ctx, hex.x, hex.y, hexRadius);
+        fillHex(ctx, hex.x, hex.y, hexRadius);
       }
     });
     ctx.restore();
@@ -180,7 +180,7 @@ export function renderHexMap(
         (moisture >= b.minMoisture && moisture <= b.maxMoisture)
       );
       ctx.fillStyle = biome ? biome.color : LAND_COLOR;
-      drawHex(ctx, hex.x, hex.y, hexRadius);
+      fillHex(ctx, hex.x, hex.y, hexRadius);
     }
   });
   hexes.forEach((hex, i) => {
@@ -191,7 +191,7 @@ export function renderHexMap(
         (b.name.includes('Ocean') || b.name.includes('Water'))
       );
       ctx.fillStyle = waterBiome?.color || OCEAN_COLOR;
-      drawHex(ctx, hex.x, hex.y, hexRadius);
+      fillHex(ctx, hex.x, hex.y, hexRadius);
     }
   });
   ctx.restore();
@@ -230,6 +230,20 @@ function fillCoastlinesWithHoles(
   ctx.restore();
 }
 
+/** Fill a regular, pointy-top hexagon */
+function fillHex(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 3) * i;
+    const px = x + r * Math.cos(angle);
+    const py = y + r * Math.sin(angle);
+    if (i === 0) ctx.moveTo(px, py);
+    else        ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
 function drawElevationHeatmap(
   ctx: CanvasRenderingContext2D,
   hexes: Hex[],
@@ -263,7 +277,7 @@ function drawElevationHeatmap(
     }
     
     ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-    drawHex(ctx, hex.x, hex.y, hexRadius);
+    fillHex(ctx, hex.x, hex.y, hexRadius);
   });
 }
 
@@ -280,7 +294,7 @@ function drawLandWaterDebug(
     } else {
       ctx.fillStyle = '#87CEEB'; // Light blue for water
     }
-    drawHex(ctx, hex.x, hex.y, hexRadius);
+    fillHex(ctx, hex.x, hex.y, hexRadius);
   });
 }
 
