@@ -216,36 +216,19 @@ function App() {
         coastNoiseSeed: 12345,
         showRivers: true,
         showFlowAccumulation: false,
-        showCoastlines: true,
+        showCoastlines: false, // not used here
         debugMode: false,
       });
 
-      // build the single-contour SVG path (exactly the one you showed in step 3)
+      // 1) build the single-loop SVG path you already compute in step 3
       const svgPath = hexesToCoastline(world.hexes, settings.landThreshold);
-
-      // create our render config (no coastEdges, no showCoastlines)
-      const renderConfig: RenderConfig = {
-        width: ctx.canvas.width,
-        height: ctx.canvas.height,
-        hexRadius: settings.hexRadius,
-        showRivers: false,
-        showFlowAccumulation: false,
-        showCoastlines: false,    // we’re doing the clipping ourselves
-        debugMode: false,
-        coastEdges: [],
-        showHexOutlines: settings.showHexOutlines,
-        showElevationHeatmap: settings.showElevationHeatmap,
-        showLandWaterDebug: settings.showLandWaterDebug,
-      };
-
-      // apply clip
       if (svgPath) {
         ctx.save();
-        const clip = buildClipPath(svgPath);
-        ctx.clip(clip);           // default nonzero rule, so the single path is “inside”
+        const clip = new Path2D(svgPath);
+        ctx.clip(clip);           // everything you draw now is *inside* the big island shape
       }
 
-      // draw land inside the mask
+      // 2) draw land biomes inside the mask
       world.hexes.forEach((hex, i) => {
         if (hex.isLand) {
           const moisture = hex.moisture;
@@ -260,12 +243,10 @@ function App() {
         }
       });
 
-      // restore out of the mask
-      if (svgPath) {
-        ctx.restore();
-      }
+      // 3) restore—remove the mask so we can paint the oceans
+      if (svgPath) ctx.restore();
 
-      // draw water everywhere else
+      // 4) paint water everywhere else
       world.hexes.forEach((hex, i) => {
         if (!hex.isLand) {
           const waterBiome = biomes.find(b =>
@@ -273,12 +254,12 @@ function App() {
             hex.elevation <= b.maxHeight &&
             (b.name.includes('Ocean') || b.name.includes('Water'))
           );
-          ctx.fillStyle = waterBiome?.color ?? '#a3b9d7';
+          ctx.fillStyle = waterBiome?.color ?? '#3b82f6';
           drawHex(ctx, hex.x, hex.y, settings.hexRadius);
         }
       });
 
-      // finally rivers
+      // 5) rivers on top
       drawRivers(ctx, world.riverResult.riverPolylines, false);
 
       setIsGenerating(false);
